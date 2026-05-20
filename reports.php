@@ -221,47 +221,7 @@ if (in_array($view, ['Summary', 'Printable', 'Dashboard'])) {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* FINAL FIX FOR BLANK PDF - Aggressive Visibility */
-    @media print {
-        @page { size: A4; margin: 1cm; }
-        html, body {
-            background: #fff !important;
-            color: #000 !important;
-            height: auto !important;
-            overflow: visible !important;
-        }
-        .no-print, header, footer, nav, .navbar, .report-card-header, .filter-pill-container, .btn, .modal {
-            display: none !important;
-        }
-        .container-fluid, .row, .col-12 {
-            display: block !important;
-            width: 100% !important;
-            padding: 0 !important;
-        }
-        .card {
-            border: none !important;
-            box-shadow: none !important;
-            display: block !important;
-            overflow: visible !important;
-        }
-        table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            display: table !important;
-            color: #000 !important;
-        }
-        th, td {
-            border: 1px solid #000 !important;
-            padding: 6px !important;
-            color: #000 !important;
-            font-size: 10pt !important;
-        }
-        .badge {
-            border: 1px solid #000 !important;
-            color: #000 !important;
-            background: transparent !important;
-        }
-    }
+    /* Custom print fixes are now centralized in header.php */
 </style>
 
 <script>

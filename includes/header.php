@@ -115,7 +115,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
     <meta name="theme-color" content="#1a1a1a">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <link rel="stylesheet" href="public/css/style.css">
+    <link rel="stylesheet" href="public/css/style.css?v=<?= time() ?>">
     <style>
         :root {
             --brand-gradient: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
@@ -167,25 +167,28 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
 
         /* Print logic - Corrected to avoid hiding icons in normal view */
         @media print {
-            body { background: white !important; color: black !important; padding: 0 !important; }
+            body { background: white !important; color: black !important; padding: 0 !important; direction: rtl !important; }
             .no-print, .btn, .navbar, .nav, .breadcrumb, .alert, .no-print *, .filter-pill-container, .report-card-header { 
                 display: none !important; 
                 height: 0 !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
-            .card { border: none !important; box-shadow: none !important; background: transparent !important; overflow: visible !important; }
-            .container-fluid, .container { width: 100% !important; padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+            .card { border: none !important; box-shadow: none !important; background: transparent !important; overflow: visible !important; display: block !important; }
+            .card-body { padding: 0 !important; }
+            .container-fluid, .container, .row, .col-12 { display: block !important; width: 100% !important; padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
             
             .print-header { display: block !important; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
             .print-header h1 { font-size: 24pt; font-weight: 900; margin-bottom: 5px; }
             
-            table { width: 100% !important; border-collapse: collapse !important; font-size: 10pt !important; }
-            th, td { border: 1px solid #ddd !important; padding: 8px !important; color: black !important; }
-            th { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .badge { border: 1px solid #ccc !important; color: black !important; background: transparent !important; }
+            .table-responsive { overflow: visible !important; display: block !important; width: 100% !important; }
+            table { width: 100% !important; border-collapse: collapse !important; font-size: 11pt !important; direction: rtl !important; }
+            th, td { border: 1px solid #000 !important; padding: 8px !important; color: black !important; word-wrap: break-word; }
+            th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; }
+            tr { page-break-inside: avoid !important; }
+            .badge { border: 1px solid #000 !important; color: black !important; background: transparent !important; }
             
-            @page { size: A4; margin: 1cm; }
+            @page { margin: 0.5cm; }
         }
         
         .print-header { display: none; }

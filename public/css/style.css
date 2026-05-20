@@ -27,23 +27,8 @@ body {
 
 /* Print Styles */
 @media print {
-    body * {
-        visibility: hidden;
-    }
-
-    #printableArea,
-    .printable-area,
-    #printableArea *,
-    .printable-area * {
-        visibility: visible;
-    }
-
-    #printableArea,
-    .printable-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
+    .no-print {
+        display: none !important;
     }
 
     .no-print {
