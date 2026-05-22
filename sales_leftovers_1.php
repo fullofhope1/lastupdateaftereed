@@ -84,7 +84,7 @@ $jsonCustomers = json_encode($customers);
                         // Only show types that exist in $leftoverStocks
                         $hasStock = false;
                         foreach ($leftoverStocks as $s) {
-                            if ($s['qat_type_id'] == $t['id']) {
+                            if ($s['qat_type_id'] == $t['id'] && in_array($s['status'], ['Momsi_Day_1', 'Transferred_Next_Day', 'Auto_Momsi'])) {
                                 $hasStock = true;
                                 break;
                             }
