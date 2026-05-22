@@ -27,12 +27,13 @@
                         <th>النوع</th>
                         <th class="text-center">الكمية</th>
                         <th class="text-center">الحالة</th>
+                        <th class="text-center">الملاحظات</th>
                         <th class="text-end pe-4">قرار الترحيل/الإتلاف</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($subList)): ?>
-                        <tr><td colspan="6" class="text-center py-5 text-muted">لا توجد سجلات في هذا القسم.</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">لا توجد سجلات في هذا القسم.</td></tr>
                     <?php else: ?>
                         <?php foreach ($subList as $l): ?>
                             <tr>
@@ -47,8 +48,24 @@
                                 <td class="text-center fw-bold">
                                     <?= ($l['unit_type'] === 'weight') ? number_format($l['weight_kg'], 3).' كجم' : $l['quantity_units'].' '.$l['unit_type'] ?>
                                 </td>
+                                <td class="text-center">
+                                    <?php
+                                    $statusVal = $l['status'];
+                                    if ($statusVal === 'Staff_Consumption') {
+                                        echo '<span class="badge bg-warning text-dark"><i class="fas fa-user-tie me-1"></i> تخزينة عمال</span>';
+                                    } elseif ($statusVal === 'Dropped') {
+                                        echo '<span class="badge bg-danger"><i class="fas fa-trash me-1"></i> إتلاف (تالف)</span>';
+                                    } elseif ($statusVal === 'Reception_Loss') {
+                                        echo '<span class="badge bg-secondary"><i class="fas fa-balance-scale-right me-1"></i> نقص وزن بالاستلام</span>';
+                                    } elseif ($statusVal === 'Returned_Damaged') {
+                                        echo '<span class="badge bg-dark"><i class="fas fa-undo me-1"></i> مرتجع تالف</span>';
+                                    } else {
+                                        echo '<span class="badge bg-light text-muted">' . htmlspecialchars($statusVal ?: 'غير محدد') . '</span>';
+                                    }
+                                    ?>
+                                </td>
                                 <td class="text-center text-muted small">
-                                    <?= htmlspecialchars($l['status']) ?>
+                                    <?= !empty($l['notes']) ? htmlspecialchars($l['notes']) : '---' ?>
                                 </td>
                                 <td class="text-end pe-4 text-muted small">
                                     <?= $l['decision_date'] ? 'تم في: '.$l['decision_date'] : '---' ?>

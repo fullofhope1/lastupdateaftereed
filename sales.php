@@ -211,6 +211,8 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
         <input type="hidden" name="unit_type" id="i_utype">
         <input type="hidden" name="price" id="i_price">
         <input type="hidden" name="payment_method" id="i_method">
+        <input type="hidden" name="paid_amount" id="i_paid_cash">
+        <input type="hidden" name="remaining_method" id="i_remaining_method">
 
         <!-- Transfer Details -->
         <input type="hidden" name="transfer_sender" id="i_tsender">
@@ -359,11 +361,21 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 
         <!-- STEP 6: Payment Method -->
         <div id="step6" class="step-container">
-            <h3>طريقة الدفع</h3>
-            <div class="grid-container">
-                <button type="button" class="circle-btn btn-pay" onclick="finishSale('Cash', null)">نقد</button>
-                <button type="button" class="circle-btn btn-pay" style="background: #dc3545;" onclick="nextStep(6, 'Debt')">آجل</button>
-                <button type="button" class="circle-btn btn-pay" style="background: #0dcaf0;" onclick="showTransferInputs()">تحويل</button>
+            <h3>كم استلمت كاش؟</h3>
+            <div class="w-75 mx-auto text-end">
+                <input type="number" id="cash_paid_val" class="form-control p-4 text-center fw-bold text-success" style="font-size:2rem; border-radius:16px; border:3px solid #198754;" placeholder="المبلغ كاش" inputmode="numeric" enterkeyhint="next" oninput="checkCashPaid()">
+                <div id="remaining_alert" class="alert alert-warning mt-3 d-none fw-bold text-center fs-5">
+                    الباقي: <span id="rem_amount">0</span> ريال
+                </div>
+                <div id="split_options" class="grid-container d-none mt-3">
+                    <button type="button" class="circle-btn btn-pay" style="background: #dc3545;" onclick="finishSplit('Debt')">الباقي دين</button>
+                    <button type="button" class="circle-btn btn-pay" style="background: #0dcaf0;" onclick="showSplitTransfer()">الباقي حوالة</button>
+                </div>
+                <button type="button" class="btn btn-success w-100 mt-3 p-3 fs-5" id="btn_full_cash" onclick="finishSale('Cash', null)">استلمت المبلغ كاملاً (نقد) ✓</button>
+                <div class="mt-3 text-center">
+                    <button type="button" class="btn btn-outline-info me-2" onclick="showTransferInputs()">المبلغ كامل حوالة</button>
+                    <button type="button" class="btn btn-outline-danger" onclick="nextStep(6, 'Debt')">المبلغ كامل آجل</button>
+                </div>
             </div>
             <div class="mt-4"><button type="button" class="btn btn-secondary" onclick="backStep(5)">عودة</button></div>
         </div>
@@ -576,14 +588,59 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 
         // Validation for Debt
         const m = document.getElementById('i_method').value;
+        const rm = document.getElementById('i_remaining_method').value;
         const c = document.getElementById('i_cust').value;
-        if (m === 'Debt' && !c) {
+        if ((m === 'Debt' || rm === 'Debt') && !c) {
             alert('يرجى اختيار الزبون أولاً لعملية الآجل');
             goTo(3);
             return;
         }
 
         document.getElementById('saleForm').submit();
+    }
+
+    function checkCashPaid() {
+        const total = parseFloat(document.getElementById('i_price').value) || 0;
+        let paid = document.getElementById('cash_paid_val').value;
+        if (paid === '') {
+            document.getElementById('split_options').classList.add('d-none');
+            document.getElementById('remaining_alert').classList.add('d-none');
+            document.getElementById('btn_full_cash').classList.remove('d-none');
+            return;
+        }
+        paid = parseFloat(paid) || 0;
+        if (paid < total) {
+            document.getElementById('rem_amount').innerText = total - paid;
+            document.getElementById('remaining_alert').classList.remove('d-none');
+            document.getElementById('split_options').classList.remove('d-none');
+            document.getElementById('btn_full_cash').classList.add('d-none');
+        } else {
+            document.getElementById('split_options').classList.add('d-none');
+            document.getElementById('remaining_alert').classList.add('d-none');
+            document.getElementById('btn_full_cash').classList.remove('d-none');
+        }
+    }
+
+    function finishSplit(method) {
+        document.getElementById('i_paid_cash').value = document.getElementById('cash_paid_val').value;
+        document.getElementById('i_remaining_method').value = method;
+        if (method === 'Debt') {
+            document.getElementById('i_method').value = 'Cash'; // Will be converted to Split_Debt
+            nextStep(6, 'Debt'); // Go to step 7 (Debt Type)
+        }
+    }
+
+    function showSplitTransfer() {
+        document.getElementById('i_paid_cash').value = document.getElementById('cash_paid_val').value;
+        document.getElementById('i_remaining_method').value = 'Transfer';
+        document.getElementById('i_method').value = 'Cash'; // Primary method is cash
+        
+        // Try to get customer name
+        const custNameEl = document.getElementById('s_cust');
+        if (custNameEl && custNameEl.innerText !== '---') {
+            document.getElementById('t_sender_val').value = custNameEl.innerText;
+        }
+        goTo('_transfer');
     }
 
     function finishStaffConsumption(amount) {

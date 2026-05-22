@@ -16,11 +16,14 @@ class ProductRepository extends BaseRepository
 
     public function create(array $data)
     {
+        $params = [
+            'name' => $data['name'] ?? null,
+            'description' => $data['description'] ?? '',
+            'unit_type' => $data['unit_type'] ?? 'weight',
+            'media_path' => $data['media_path'] ?? null,
+        ];
         $sql = "INSERT INTO qat_types (name, description, unit_type, media_path) VALUES (:name, :description, :unit_type, :media_path)";
-        $data['unit_type'] = $data['unit_type'] ?? 'weight';
-        $data['description'] = $data['description'] ?? '';
-        $data['media_path'] = $data['media_path'] ?? null;
-        $this->execute($sql, $data);
+        $this->execute($sql, $params);
         return $this->pdo->lastInsertId();
     }
 

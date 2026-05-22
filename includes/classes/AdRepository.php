@@ -10,9 +10,18 @@ class AdRepository extends BaseRepository
 
     public function create(array $data)
     {
+        $params = [
+            'client_name' => $data['client_name'] ?? null,
+            'title'       => $data['title'] ?? null,
+            'description' => $data['description'] ?? null,
+            'media_path'  => $data['media_path'] ?? null,
+            'image_url'   => $data['image_url'] ?? null,
+            'link_url'    => $data['link_url'] ?? null,
+            'status'      => $data['status'] ?? 'Active',
+        ];
         $sql = "INSERT INTO advertisements (client_name, title, description, media_path, image_url, link_url, status, created_at) 
                 VALUES (:client_name, :title, :description, :media_path, :image_url, :link_url, :status, NOW())";
-        $this->execute($sql, $data);
+        $this->execute($sql, $params);
         return $this->pdo->lastInsertId();
     }
 

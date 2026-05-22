@@ -147,20 +147,30 @@ class SaleService extends BaseService
             }
             
             $isPartial = (float)$data['price'] > (float)($data['paid_amount'] ?? 0);
-            if ($data['payment_method'] !== 'Debt' && $isPartial) {
-                // Force to debt if not fully paid to ensure correct accounting (Cash, Kuraimi, etc.)
-                $data['payment_method'] = 'Debt'; 
-                $data['is_paid'] = 0;
+            $debtAmount = 0;
+            
+            if ($isPartial) {
+                if (($data['remaining_method'] ?? '') === 'Transfer' || $data['payment_method'] === 'Internal Transfer') {
+                    // It's a Split Transfer (Cash + Transfer)
+                    $data['payment_method'] = 'Split_Transfer';
+                    $data['is_paid'] = 1;
+                } else {
+                    // It's a Split Debt (Cash + Debt) or pure Debt
+                    $data['payment_method'] = 'Debt'; 
+                    $data['is_paid'] = 0;
+                    $debtAmount = (float)$data['price'] - (float)($data['paid_amount'] ?? 0);
+                }
             } elseif ($data['payment_method'] === 'Debt') {
                 $data['is_paid'] = 0;
+                $debtAmount = (float)$data['price'];
             } else {
                 $data['is_paid'] = 1;
             }
 
-            if ($data['payment_method'] === 'Debt' && !empty($data['customer_id'])) {
+            if ($debtAmount > 0 && !empty($data['customer_id'])) {
                 $cust = $this->customerRepo->getById($data['customer_id']);
                 if ($cust) {
-                    $newDebt = (float)$cust['total_debt'] + (float)$data['price'];
+                    $newDebt = (float)$cust['total_debt'] + $debtAmount;
                     if ($cust['debt_limit'] !== null && $newDebt > $cust['debt_limit']) {
                         throw new Exception("CreditLimitExceeded|{$cust['debt_limit']}|{$cust['total_debt']}");
                     }
@@ -171,9 +181,23 @@ class SaleService extends BaseService
             $saleId = $this->saleRepo->create($data);
 
             // 4. Update Customer Debt
-            $debtAmount = (float)$data['price'] - (float)($data['paid_amount'] ?? 0);
             if ($debtAmount > 0 && !empty($data['customer_id'])) {
                 $this->customerRepo->incrementDebt($data['customer_id'], $debtAmount);
+            }
+            
+            // 5. Process Split Transfer
+            if ($isPartial && $data['payment_method'] === 'Split_Transfer' && !empty($data['customer_id'])) {
+                $transferAmount = (float)$data['price'] - (float)$data['paid_amount'];
+                $this->saleRepo->insertTransferPayment(
+                    $data['customer_id'],
+                    $transferAmount,
+                    $saleId,
+                    $data['sale_date'],
+                    $data['transfer_sender'] ?? null,
+                    $data['transfer_receiver'] ?? null,
+                    $data['transfer_number'] ?? null,
+                    $data['transfer_company'] ?? null
+                );
             }
 
             $this->saleRepo->commit();

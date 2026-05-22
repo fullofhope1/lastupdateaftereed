@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $data = [
             // FIX #5: Always use server-side date. Never trust POST for sale_date.
-            'sale_date'        => date('Y-m-d'),
+            'sale_date'        => getOperationalDate(),
             'customer_id'      => !empty($_POST['customer_id']) ? (int)$_POST['customer_id'] : null,
             'qat_type_id'      => (int)$_POST['qat_type_id'],
             'unit_type'        => $_POST['unit_type'] ?? 'weight',
@@ -26,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'quantity_units'   => (int)($_POST['quantity_units'] ?? 0),
             'price'            => (float)$_POST['price'],
             'payment_method'   => $_POST['payment_method'],
+            'paid_amount'      => isset($_POST['paid_amount']) && $_POST['paid_amount'] !== '' ? (float)$_POST['paid_amount'] : (float)$_POST['price'],
+            'remaining_method' => $_POST['remaining_method'] ?? null,
             'transfer_sender'  => !empty($_POST['transfer_sender'])  ? $_POST['transfer_sender']  : null,
             'transfer_receiver'=> !empty($_POST['transfer_receiver']) ? $_POST['transfer_receiver']: null,
             'transfer_number'  => !empty($_POST['transfer_number'])  ? $_POST['transfer_number']  : null,

@@ -67,8 +67,15 @@ class ReportRepository extends BaseRepository
         $totalExpenses = $this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.category != 'تسديد مورد'", $paramsExp) ?: 0;
         $totalProviderPayments = $this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
         
-        // Final Calculation: Sales - (Cost of what was sold) - (Cost of what was trashed today) - Expenses
-        $realProfit = $totalSales - $totalCogs - $totalWasteValue - $totalExpenses;
+        $totalAdminExpenses = 0;
+        if ($role === 'super_admin') {
+            list($whereExpAdmin, $paramsExpAdmin) = $this->getWhereAndParams($reportType, $date, $month, $year, 'e.expense_date');
+            $whereExpAdmin .= " AND u.role = 'admin'";
+            $totalAdminExpenses = $this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExpAdmin AND e.category != 'تسديد مورد'", $paramsExpAdmin) ?: 0;
+        }
+
+        // Final Calculation: Sales - (Cost of what was sold) - (Cost of what was trashed today) - Expenses - Admin Expenses
+        $realProfit = $totalSales - $totalCogs - $totalWasteValue - $totalExpenses - $totalAdminExpenses;
 
 
         // Current Inventory Value (What is currently in stock)
@@ -83,6 +90,7 @@ class ReportRepository extends BaseRepository
             'total_cogs' => $totalCogs,
             'total_waste_value' => $totalWasteValue,
             'total_expenses' => $totalExpenses,
+            'total_admin_expenses' => $totalAdminExpenses,
             'total_provider_payments' => $totalProviderPayments,
             'real_profit' => $realProfit,
             'inventory_value' => $currentInventoryValue
@@ -204,7 +212,7 @@ class ReportRepository extends BaseRepository
                 FROM leftovers l
                 JOIN purchases p ON l.purchase_id = p.id
                 LEFT JOIN users u ON l.created_by = u.id
-                $where AND l.status IN ('Dropped', 'Auto_Dropped')";
+                $where AND l.status IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption')";
         
         return (float)$this->fetchColumn($sql, $params) ?: 0;
     }
@@ -322,7 +330,7 @@ class ReportRepository extends BaseRepository
                 LEFT JOIN qat_types t ON l.qat_type_id = t.id
                 LEFT JOIN purchases p ON l.purchase_id = p.id
                 LEFT JOIN providers prov ON p.provider_id = prov.id
-                $where AND l.status IN ('Dropped', 'Auto_Dropped') ORDER BY l.id DESC";
+                $where AND l.status IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption') ORDER BY l.id DESC";
         return $this->fetchAll($sql, $params);
     }
 
@@ -352,8 +360,8 @@ class ReportRepository extends BaseRepository
         $whereRef .= $roleFilter;
 
         // 1. Sales Breakdown
-        $cashSales = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method = 'Cash' AND s.is_returned = 0", $paramsSales) ?: 0;
-        $transferSales = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method NOT IN ('Cash', 'Debt') AND s.is_returned = 0", $paramsSales) ?: 0;
+        $cashSales = (float)$this->fetchColumn("SELECT SUM(s.paid_amount) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method IN ('Cash', 'Debt', 'Split_Transfer') AND s.is_returned = 0", $paramsSales) ?: 0;
+        $transferSales = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method NOT IN ('Cash', 'Debt', 'Split_Transfer') AND s.is_returned = 0", $paramsSales) ?: 0;
         
         // 2. Collections Breakdown
         $totalWaselCash = (float)$this->fetchColumn("SELECT SUM(p.amount) FROM payments p LEFT JOIN users u ON p.created_by = u.id $wherePay AND p.payment_method = 'Cash'", $paramsPay) ?: 0;
@@ -395,7 +403,7 @@ class ReportRepository extends BaseRepository
         $totalGlobalDebt = $this->getTotalReceivables();
         
         // 7. Today's New Debt Sales (for daily reconciliation)
-        $todayDebtSales = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method = 'Debt' AND s.is_returned = 0", $paramsSales) ?: 0;
+        $todayDebtSales = (float)$this->fetchColumn("SELECT SUM(s.price - s.paid_amount) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method = 'Debt' AND s.is_returned = 0", $paramsSales) ?: 0;
 
         return [
             'cash_sales' => $cashSales,
@@ -432,7 +440,7 @@ class ReportRepository extends BaseRepository
         $sql = "SELECT SUM(l.weight_kg) as total_weight, SUM(l.quantity_units) as total_units 
                 FROM leftovers l
                 LEFT JOIN users u ON l.created_by = u.id
-                $where AND l.status IN ('Dropped', 'Auto_Dropped')";
+                $where AND l.status IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption')";
         return $this->fetchOne($sql, $params);
     }
 
@@ -451,9 +459,9 @@ class ReportRepository extends BaseRepository
         list($where, $params) = $this->getWhereAndParams($reportType, $date, $month, $year, 's.sale_date');
         // ✅ FIX #2: Momsi classification uses leftover.status (reliable) instead of s.qat_status (manual/unreliable)
         $sql = "SELECT
-                SUM(CASE WHEN s.payment_method = 'Cash' THEN s.price ELSE 0 END) as cash_sales,
-                SUM(CASE WHEN s.payment_method = 'Debt' THEN s.price ELSE 0 END) as debt_sales,
-                SUM(CASE WHEN s.payment_method NOT IN ('Cash', 'Debt') THEN s.price ELSE 0 END) as transfer_sales,
+                SUM(CASE WHEN s.payment_method IN ('Cash', 'Debt', 'Split_Transfer') THEN s.paid_amount ELSE 0 END) as cash_sales,
+                SUM(CASE WHEN s.payment_method = 'Debt' THEN (s.price - s.paid_amount) ELSE 0 END) as debt_sales,
+                SUM(CASE WHEN s.payment_method NOT IN ('Cash', 'Debt', 'Split_Transfer') THEN s.price ELSE 0 END) as transfer_sales,
                 SUM(CASE WHEN l.status = 'Momsi_Day_1' THEN s.price ELSE 0 END) as momsi1_sales,
                 SUM(CASE WHEN l.status = 'Momsi_Day_2' THEN s.price ELSE 0 END) as momsi2_sales,
                 COUNT(*) as total_invoices
@@ -476,7 +484,7 @@ class ReportRepository extends BaseRepository
         }
 
         $sql = "SELECT
-                SUM(CASE WHEN l.status IN ('Dropped', 'Auto_Dropped') THEN l.weight_kg ELSE 0 END) as total_dropped_kg,
+                SUM(CASE WHEN l.status IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption') THEN l.weight_kg ELSE 0 END) as total_dropped_kg,
                 SUM(CASE WHEN l.status = 'Dropped' THEN l.weight_kg ELSE 0 END) as manual_dropped_kg,
                 SUM(CASE WHEN l.status = 'Auto_Dropped' THEN l.weight_kg ELSE 0 END) as auto_dropped_kg,
                 SUM(CASE WHEN l.status IN ('Transferred_Next_Day', 'Auto_Momsi', 'Momsi_Day_1') THEN l.weight_kg ELSE 0 END) as moms_day1_kg,

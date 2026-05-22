@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         $data = [
-            'purchase_date' => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : date('Y-m-d'),
+            'purchase_date' => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : getOperationalDate(),
             'provider_id'   => !empty($_POST['provider_id']) ? (int)$_POST['provider_id'] : null, // FIX #10
             'qat_type_id'   => (int)$_POST['qat_type_id'],
             'quantity_kg'   => (float)$_POST['quantity_kg'],

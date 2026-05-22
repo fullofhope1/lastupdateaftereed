@@ -145,4 +145,20 @@ class SaleRepository extends BaseRepository
         
         return $this->fetchAll($sql, $params);
     }
+
+    public function insertTransferPayment($customerId, $amount, $saleId, $date, $sender, $receiver, $number, $company)
+    {
+        $sql = "INSERT INTO payments (customer_id, amount, payment_method, note, payment_date, transfer_sender, transfer_receiver, transfer_number, transfer_company) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        return $this->execute($sql, [
+            $customerId,
+            $amount,
+            'Transfer',
+            "باقي فاتورة مبيعات #$saleId (حوالة)",
+            $date,
+            $sender,
+            $receiver,
+            $number,
+            $company
+        ]);
+    }
 }

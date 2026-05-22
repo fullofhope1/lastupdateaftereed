@@ -25,10 +25,7 @@ if (!function_exists('getOperationalDate')) {
      * If the current time is before 6:00 AM, it returns YESTERDAY'S date.
      */
     function getOperationalDate() {
-        $currentTime = date('H:i');
-        if ($currentTime < '06:20') {
-            return date('Y-m-d', strtotime('-1 day'));
-        }
+        // Reverted to midnight as requested by user
         return date('Y-m-d');
     }
 }

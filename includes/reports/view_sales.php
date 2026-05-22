@@ -240,6 +240,8 @@
                                         "type" => $s["type_name"],
                                         "qty" => $ut === "weight" ? ($netKg . " كجم") : ($netQty . " " . $ut),
                                         "price" => number_format($s["price"]) . " ريال",
+                                        "price_raw" => (float)$s["price"],
+                                        "paid_amount" => (float)$s["paid_amount"],
                                         "payment_method" => $s["payment_method"],
                                         "transfer_sender" => $s["transfer_sender"] ?? "",
                                         "transfer_receiver" => $s["transfer_receiver"] ?? "",
@@ -370,9 +372,27 @@
                                     <span class="badge bg-info-subtle text-info fs-6 px-3">${methodAr}</span>
                                 </div>`;
 
-        if (data.payment_method === 'Transfer' || data.payment_method === 'Internal Transfer') {
+        // Check for split payment
+        if (data.paid_amount > 0 && data.paid_amount < data.price_raw) {
+            let remaining = data.price_raw - data.paid_amount;
+            let remainingMethod = (data.payment_method === 'Split_Transfer') ? 'حوالة' : 'دين';
             modalHtml += `
                                 <hr class="my-2">
+                                <div class="row g-2 text-center small mt-2">
+                                    <div class="col-6 border-end">
+                                        <div class="text-muted mb-1">المدفوع نقداً</div>
+                                        <div class="fw-bold text-success fs-6">${data.paid_amount.toLocaleString('en-US')} ريال</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-muted mb-1">المتبقي (${remainingMethod})</div>
+                                        <div class="fw-bold text-danger fs-6">${remaining.toLocaleString('en-US')} ريال</div>
+                                    </div>
+                                </div>`;
+        }
+
+        if (data.payment_method === 'Transfer' || data.payment_method === 'Internal Transfer' || data.payment_method === 'Split_Transfer') {
+            modalHtml += `
+                                <hr class="my-2 mt-3">
                                 <div class="row g-2 small">
                                     <div class="col-6"><span class="text-muted">المرسل:</span> <span class="fw-bold">${data.transfer_sender || '-'}</span></div>
                                     <div class="col-6"><span class="text-muted">المستلم:</span> <span class="fw-bold">${data.transfer_receiver || '-'}</span></div>

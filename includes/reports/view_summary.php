@@ -99,6 +99,13 @@ $cashInHandResult = $cashSummary['remaining_cash'] ?? 0;
                             <td class="ps-4 py-3 fw-bold text-danger"><i class="fas fa-minus-circle me-3"></i> 10. إجمالي الخرج (المصاريف)</td>
                             <td class="pe-4 py-3 text-end fw-bold text-danger"><?= number_format($cashSummary['total_expenses']) ?></td>
                         </tr>
+                        
+                        <?php if (isset($totals['total_admin_expenses'])): ?>
+                        <tr class="bg-light bg-opacity-75">
+                            <td class="ps-4 py-3 fw-bold text-danger"><i class="fas fa-user-tie me-3"></i> 10.1 مصاريف بن فارع (تشمل سحبيات الموظفين)</td>
+                            <td class="pe-4 py-3 text-end fw-bold text-danger"><?= number_format($totals['total_admin_expenses']) ?></td>
+                        </tr>
+                        <?php endif; ?>
 
                         <!-- 9. PROVIDER PAYMENTS (Hidden as per user request - handled in statements) -->
                         <?php /*

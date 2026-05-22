@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $service = new ExpenseService($expenseRepo, $depositRepo, $staffRepo);
 
         $data = [
-            'expense_date' => !empty($_POST['expense_date']) ? $_POST['expense_date'] : date('Y-m-d'),
+            'expense_date' => !empty($_POST['expense_date']) ? $_POST['expense_date'] : getOperationalDate(),
             'description' => $_POST['description'],
             'amount' => $_POST['amount'],
             'payment_method' => $_POST['payment_method'] ?? 'Cash',

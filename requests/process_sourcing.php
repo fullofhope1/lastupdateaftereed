@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $data = [
-            'purchase_date' => $_POST['purchase_date'] ?? date('Y-m-d'),
+            'purchase_date' => $_POST['purchase_date'] ?? getOperationalDate(),
             'provider_id' => $_POST['provider_id'],
             'type_name' => trim($_POST['type_name']),
             'unit_type' => $_POST['unit_type'] ?? 'weight',

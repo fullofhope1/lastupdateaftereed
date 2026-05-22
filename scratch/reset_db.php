@@ -1,40 +1,35 @@
 <?php
-// scratch/reset_db.php
-require '../config/db.php';
+require 'c:/xampp/htdocs/qat/config/db.php';
 
 $tablesToTruncate = [
-    'sales',
-    'purchases',
-    'leftovers',
-    'expenses',
+    'advertisements',
+    'attendance',
+    'closed_shifts',
     'customers',
+    'expenses',
+    'leftovers',
+    'payments',
     'providers',
-    'staff_withdrawals',
-    'salary_payments',
+    'purchases',
+    'qat_deposits',
     'refunds',
-    'provider_payments',
-    'debts' // if there is a specific debts table, though usually they are in sales
+    'sales',
+    'staff',
+    'staff_attendance',
+    'unknown_transfers'
 ];
 
 try {
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
     
-    // Get all tables to be sure
-    $stmt = $pdo->query("SHOW TABLES");
-    $allTables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    $keep = ['qat_types', 'users'];
-    
-    foreach ($allTables as $table) {
-        if (!in_array($table, $keep)) {
-            echo "Truncating $table...\n";
-            $pdo->exec("TRUNCATE TABLE `$table` ");
-        }
+    foreach ($tablesToTruncate as $table) {
+        $pdo->exec("TRUNCATE TABLE $table");
+        echo "Truncated $table\n";
     }
     
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
-    echo "\nDatabase Reset Successfully! Kept: qat_types, users.\n";
-    
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+    echo "Database successfully formatted. Only 'users' and 'qat_types' were kept.\n";
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+    echo "Error: " . $e->getMessage() . "\n";
 }
