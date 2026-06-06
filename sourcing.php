@@ -575,11 +575,11 @@ $shipments = $purchaseRepo->getTodayShipmentsByUserId($today, $user_id);
                     <div id="edit_weight_section" class="row g-2">
                         <div class="col-6 mb-3">
                             <label class="small fw-bold mb-1">الوزن (جرام)</label>
-                            <input type="number" name="source_weight_grams" id="edit_weight_grams" class="form-control rounded-3" required>
+                            <input type="number" name="source_weight_grams" id="edit_weight_grams" class="form-control rounded-3">
                         </div>
                         <div class="col-6 mb-3">
                             <label class="small fw-bold mb-1">السعر / كجم</label>
-                            <input type="number" name="price_per_kilo" id="edit_price_per_kilo" class="form-control rounded-3" required>
+                            <input type="number" name="price_per_kilo" id="edit_price_per_kilo" class="form-control rounded-3">
                         </div>
                     </div>
 
@@ -639,11 +639,21 @@ $shipments = $purchaseRepo->getTodayShipmentsByUserId($today, $user_id);
             document.getElementById('edit_unit_section').classList.add('d-none');
             document.getElementById('edit_weight_grams').value = data.source_weight_grams;
             document.getElementById('edit_price_per_kilo').value = data.price_per_kilo;
+            
+            document.getElementById('edit_weight_grams').required = true;
+            document.getElementById('edit_price_per_kilo').required = true;
+            document.getElementById('edit_source_units').required = false;
+            document.getElementById('edit_price_per_unit').required = false;
         } else {
             document.getElementById('edit_weight_section').classList.add('d-none');
             document.getElementById('edit_unit_section').classList.remove('d-none');
             document.getElementById('edit_source_units').value = data.source_units;
             document.getElementById('edit_price_per_unit').value = data.price_per_unit;
+            
+            document.getElementById('edit_weight_grams').required = false;
+            document.getElementById('edit_price_per_kilo').required = false;
+            document.getElementById('edit_source_units').required = true;
+            document.getElementById('edit_price_per_unit').required = true;
         }
 
         new bootstrap.Modal(document.getElementById('editShipmentModal')).show();

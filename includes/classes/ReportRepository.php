@@ -106,9 +106,9 @@ class ReportRepository extends BaseRepository
                     SELECT SUM(
                         CASE 
                             WHEN p.unit_type = 'weight' THEN 
-                                (p.quantity_kg - COALESCE(s.sold_kg, 0) - COALESCE(l.leftover_kg, 0)) * p.price_per_kilo
+                                (p.quantity_kg - COALESCE(s.sold_kg, 0) - COALESCE(l.leftover_kg, 0)) * ((p.agreed_price - p.discount_amount) / NULLIF(p.quantity_kg, 0))
                             ELSE 
-                                (p.received_units - COALESCE(s.sold_units, 0) - COALESCE(l.leftover_units, 0)) * p.price_per_unit
+                                (p.received_units - COALESCE(s.sold_units, 0) - COALESCE(l.leftover_units, 0)) * ((p.agreed_price - p.discount_amount) / NULLIF(p.received_units, 0))
                         END
                     )
                     FROM purchases p
@@ -132,9 +132,9 @@ class ReportRepository extends BaseRepository
                     SELECT SUM(
                         CASE 
                             WHEN l.unit_type = 'weight' THEN 
-                                (l.weight_kg - COALESCE(s.sold_kg, 0)) * p.price_per_kilo
+                                (l.weight_kg - COALESCE(s.sold_kg, 0)) * ((p.agreed_price - p.discount_amount) / NULLIF(p.quantity_kg, 0))
                             ELSE 
-                                (l.quantity_units - COALESCE(s.sold_units, 0)) * p.price_per_unit
+                                (l.quantity_units - COALESCE(s.sold_units, 0)) * ((p.agreed_price - p.discount_amount) / NULLIF(p.received_units, 0))
                         END
                     )
                     FROM leftovers l
