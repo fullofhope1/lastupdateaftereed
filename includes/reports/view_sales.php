@@ -1,4 +1,8 @@
 <style>
+<?php
+$customerRepoLocal = new CustomerRepository($pdo);
+$activeCustomers = $customerRepoLocal->getAllActive();
+?>
     .report-table-card {
         border-radius: 15px;
         overflow: hidden;
@@ -54,8 +58,16 @@
     <div class="card-body p-0">
         <!-- Search box and Filters -->
         <div class="row p-3 pb-0 g-2">
-            <div class="col-md-9">
+            <div class="col-md-6">
                 <input type="text" id="salesReportSearch" class="form-control" placeholder="بحث باسم العميل أو الرعوي..." oninput="filterSalesReport()">
+            </div>
+            <div class="col-md-3">
+                <select id="salesQatStatusFilter" class="form-select" onchange="filterSalesReport()">
+                    <option value="">كل الحالات (فرش/ممسي)</option>
+                    <option value="فرش">طري (فرش)</option>
+                    <option value="ممسي أول">ممسي أول</option>
+                    <option value="ممسي ثاني">ممسي ثاني</option>
+                </select>
             </div>
             <div class="col-md-3">
                 <select id="salesMethodFilter" class="form-select" onchange="filterSalesReport()">
@@ -117,12 +129,26 @@
                                 if ($ut === 'قبضة') { $totalUnitsQabdah += $netQty; }
                                 if ($ut === 'قراطيس') { $totalUnitsQartas += $netQty; }
                             }
-                        ?>
+
+                            $qatStatus = 'فرش';
+                            $badgeClass = 'bg-success-subtle text-success border-success-subtle';
+                            
+                            if (!empty($s['leftover_status'])) {
+                                if (in_array($s['leftover_status'], ['Momsi_Day_1', 'Transferred_Next_Day', 'Auto_Momsi'])) {
+                                    $qatStatus = 'ممسي أول';
+                                    $badgeClass = 'bg-warning-subtle text-warning-emphasis border-warning-subtle';
+                                } elseif ($s['leftover_status'] === 'Momsi_Day_2') {
+                                    $qatStatus = 'ممسي ثاني';
+                                    $badgeClass = 'bg-secondary-subtle text-secondary border-secondary-subtle';
+                                }
+                            }
+                            ?>
                             <tr class="<?= $s['is_returned'] ? 'opacity-50 text-decoration-line-through table-secondary' : '' ?>"
                                 data-kg="<?= $ut === 'weight' ? $netKg : 0 ?>"
                                 data-qabdah="<?= $ut === 'قبضة' ? $netQty : 0 ?>"
                                 data-qartas="<?= $ut === 'قراطيس' ? $netQty : 0 ?>"
-                                data-price="<?= $netPriceRaw ?>">
+                                data-price="<?= $netPriceRaw ?>"
+                                data-qat-status="<?= $qatStatus ?>">
                                 <td><span class="text-muted small">#<?= $s['id'] ?></span></td>
                                 <td>
                                     <div class="fw-bold"><?= getArabicDay($s['sale_date']) ?></div>
@@ -143,7 +169,8 @@
                                     <span class="badge bg-light text-dark fw-normal border"><?= htmlspecialchars($s['prov_name'] ?? '---') ?></span>
                                 </td>
                                 <td>
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle"><?= htmlspecialchars($s['type_name']) ?></span>
+                                    <div class="mb-1"><span class="badge bg-info-subtle text-info border border-info-subtle"><?= htmlspecialchars($s['type_name']) ?></span></div>
+                                    <div><span class="badge <?= $badgeClass ?> border"><?= $qatStatus ?></span></div>
                                 </td>
                                 <?php
                                 $ut = $s['unit_type'] ?? 'weight';
@@ -251,6 +278,28 @@
                                     ], JSON_UNESCAPED_UNICODE), ENT_QUOTES, "UTF-8") ?>)'>
                                         <i class="fas fa-file-invoice"></i>
                                     </button>
+                                    <?php 
+                                    $today = date('Y-m-d');
+                                    $saleDate = date('Y-m-d', strtotime($s['sale_date']));
+                                    if (!$s['is_returned'] && $saleDate === $today): ?>
+                                        <button class="btn btn-sm btn-outline-warning rounded-circle mb-1" title="تعديل الفاتورة" onclick='showEditModal(<?= htmlspecialchars(json_encode([
+                                            "id" => $s["id"],
+                                            "customer_id" => $s["customer_id"],
+                                            "weight_grams" => $s["weight_grams"],
+                                            "quantity_units" => $s["quantity_units"],
+                                            "unit_type" => $s["unit_type"],
+                                            "price" => (float)$s["price"],
+                                            "paid_amount" => (float)$s["paid_amount"],
+                                            "payment_method" => $s["payment_method"],
+                                            "transfer_sender" => $s["transfer_sender"] ?? "",
+                                            "transfer_receiver" => $s["transfer_receiver"] ?? "",
+                                            "transfer_company" => $s["transfer_company"] ?? "",
+                                            "transfer_number" => $s["transfer_number"] ?? "",
+                                            "debt_type" => $s["debt_type"] ?? ""
+                                        ], JSON_UNESCAPED_UNICODE), ENT_QUOTES, "UTF-8") ?>)'>
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    <?php endif; ?>
                                     <?php if ($s['is_returned']): ?>
                                         <br><span class="badge bg-danger">مرتجع</span>
                                     <?php endif; ?>
@@ -286,6 +335,7 @@
     function filterSalesReport() {
         const term = document.getElementById('salesReportSearch').value.toLowerCase();
         const method = document.getElementById('salesMethodFilter').value;
+        const qatStatus = document.getElementById('salesQatStatusFilter').value;
         
         let activeKg = 0;
         let activeQabdah = 0;
@@ -298,8 +348,11 @@
             const matchTerm = row.textContent.toLowerCase().includes(term);
             const methodCell = row.cells[7] ? row.cells[7].textContent.trim() : '';
             const matchMethod = method === '' || methodCell.includes(method);
+            
+            const rowQatStatus = row.getAttribute('data-qat-status') || '';
+            const matchQatStatus = qatStatus === '' || rowQatStatus === qatStatus;
 
-            const isVisible = (matchTerm && matchMethod);
+            const isVisible = (matchTerm && matchMethod && matchQatStatus);
             row.style.display = isVisible ? '' : 'none';
             
             // Re-calculate totals if visible AND not returned
@@ -428,6 +481,81 @@
 
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         const modal = new bootstrap.Modal(document.getElementById('invoiceModal'));
+        modal.show();
+    }
+
+    const allActiveCustomersForEdit = <?= json_encode($activeCustomers ?? [], JSON_UNESCAPED_UNICODE) ?>;
+
+    function showEditModal(data) {
+        let custOptions = '<option value="">-- عميل سفري --</option>';
+        allActiveCustomersForEdit.forEach(c => {
+            let selected = (data.customer_id == c.id) ? 'selected' : '';
+            custOptions += `<option value="${c.id}" ${selected}>${c.name}</option>`;
+        });
+
+        let utLabel = data.unit_type === 'weight' ? 'وزن (جرام)' : data.unit_type;
+        let pmLabel = data.payment_method === 'Cash' ? 'نقداً' : (data.payment_method === 'Debt' ? 'آجل (دين)' : (data.payment_method === 'Split_Transfer' ? 'نقد + حوالة' : 'حوالة'));
+
+        let qyVal = data.unit_type === 'weight' ? data.weight_grams : data.quantity_units;
+        let qtyName = data.unit_type === 'weight' ? 'weight_grams' : 'quantity_units';
+
+        let modalHtml = `
+        <div class="modal fade" id="editSaleModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 rounded-4 shadow-lg">
+                    <form action="requests/edit_sale.php" method="POST">
+                        <div class="modal-header bg-warning text-dark border-0 py-3">
+                            <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> تعديل فاتورة #${data.id}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4 bg-light text-end">
+                            <input type="hidden" name="sale_id" value="${data.id}">
+                            <input type="hidden" name="redirect_to" value="${window.location.href}">
+                            <input type="hidden" name="unit_type" value="${data.unit_type}">
+                            <input type="hidden" name="payment_method" value="${data.payment_method}">
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">العميل</label>
+                                <select class="form-select" name="customer_id">
+                                    ${custOptions}
+                                </select>
+                            </div>
+
+                            <div class="row g-2 mb-3 align-items-end">
+                                <div class="col-8">
+                                    <label class="form-label fw-bold">الكمية</label>
+                                    <input type="number" step="any" class="form-control" name="${qtyName}" value="${qyVal}" required>
+                                </div>
+                                <div class="col-4">
+                                    <div class="form-control bg-light text-muted fw-bold border-0 text-center">${utLabel}</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">السعر الإجمالي (ريال)</label>
+                                <input type="number" step="any" class="form-control text-danger fw-bold" name="price" value="${data.price}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">طريقة الدفع</label>
+                                <div class="form-control bg-light text-muted fw-bold border-0">${pmLabel}</div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0 p-3 bg-light justify-content-between">
+                            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">حفظ التعديل</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>`;
+
+        const oldModal = document.getElementById('editSaleModal');
+        if (oldModal) oldModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        const modal = new bootstrap.Modal(document.getElementById('editSaleModal'));
         modal.show();
     }
 </script>

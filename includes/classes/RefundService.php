@@ -131,12 +131,30 @@ class RefundService
             $data['unit_type'] = $unitType;
             $this->refundRepo->create($data);
 
-            // 3. Apply refund and return quantities to the specific sale record FIRST
-            // This ensures that when we recalculate total debt next, it sees the updated refund_amount.
+            // 3. Apply refund and return quantities
             if (!empty($data['sale_id'])) {
                 $weight = (float)($data['weight_kg'] ?? 0);
                 $units = (int)($data['quantity_units'] ?? 0);
                 $this->saleRepo->updateRefundAmountAndQuantity($data['sale_id'], $amount, $weight, $units);
+            } elseif ($refundType === 'Debt' && !empty($data['customer_id'])) {
+                // General debt compensation: Distribute across oldest unpaid sales
+                $unpaidSales = $this->saleRepo->getUnpaidDebtSales($data['customer_id']);
+                $remainingRefund = $amount;
+                
+                foreach ($unpaidSales as $sale) {
+                    if ($remainingRefund <= 0) break;
+                    
+                    $saleRemainingDebt = (float)$sale['price'] - (float)$sale['paid_amount'] - (float)$sale['refund_amount'];
+                    if ($saleRemainingDebt <= 0) continue;
+                    
+                    $applyAmount = min($saleRemainingDebt, $remainingRefund);
+                    $this->saleRepo->updateRefundAmountAndQuantity($sale['id'], $applyAmount, 0, 0);
+                    $remainingRefund -= $applyAmount;
+                }
+
+                if ($remainingRefund > 0) {
+                    $this->customerRepo->incrementPaidOpeningBalance($data['customer_id'], $remainingRefund);
+                }
             }
 
             // 4. Financial Adjustments (Recalculate customer total)

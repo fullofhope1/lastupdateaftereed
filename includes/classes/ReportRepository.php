@@ -255,7 +255,8 @@ class ReportRepository extends BaseRepository
         $sql = "SELECT s.*,
                        c.name as cust_name,
                        t.name as type_name,
-                       COALESCE(prov.name, lprov.name) as prov_name
+                       COALESCE(prov.name, lprov.name) as prov_name,
+                       l.status as leftover_status
                 FROM sales s
                 LEFT JOIN users u ON s.created_by = u.id
                 LEFT JOIN customers c    ON s.customer_id = c.id
@@ -368,9 +369,10 @@ class ReportRepository extends BaseRepository
         $totalWaselTransfer = (float)$this->fetchColumn("SELECT SUM(p.amount) FROM payments p LEFT JOIN users u ON p.created_by = u.id $wherePay AND p.payment_method != 'Cash'", $paramsPay) ?: 0;
 
         // 3. Refunds & Compensations
-        $totalRefunds = (float)$this->fetchColumn("SELECT SUM(s.refund_amount) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.is_returned = 0", $paramsSales) ?: 0;
+        // Physical returns = refunds where actual goods were returned (weight > 0 OR units > 0) and refund_type is Cash or Transfer (not Debt)
+        $totalRefunds = (float)$this->fetchColumn("SELECT SUM(r.amount) FROM refunds r LEFT JOIN users u ON r.created_by = u.id $whereRef AND (r.weight_kg > 0 OR r.quantity_units > 0)", $paramsRef) ?: 0;
 
-        // Actual cash payouts from the refunds table (Items returned)
+        // Actual cash payouts from the refunds table (Items returned, paid in cash)
         $totalCashRefunds = (float)$this->fetchColumn("SELECT SUM(r.amount) FROM refunds r LEFT JOIN users u ON r.created_by = u.id $whereRef AND r.refund_type = 'Cash' AND (r.weight_kg > 0 OR r.quantity_units > 0)", $paramsRef) ?: 0;
         
         // Actual transfer/bank refunds
@@ -396,6 +398,18 @@ class ReportRepository extends BaseRepository
         $totalProvPay = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
         $totalCashProvPay = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.payment_method = 'Cash' AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
 
+        $totalAdminExp = 0;
+        $totalAdminCashExp = 0;
+        $totalAdminTransferExp = 0;
+        
+        if ($role === 'super_admin') {
+            list($whereExpAdmin, $paramsExpAdmin) = $this->getWhereAndParams($reportType, $date, $month, $year, 'e.expense_date');
+            $whereExpAdmin .= " AND u.role = 'admin'";
+            $totalAdminExp = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExpAdmin AND e.category != 'تسديد مورد'", $paramsExpAdmin) ?: 0;
+            $totalAdminCashExp = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExpAdmin AND e.payment_method = 'Cash' AND e.category != 'تسديد مورد'", $paramsExpAdmin) ?: 0;
+            $totalAdminTransferExp = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExpAdmin AND e.payment_method != 'Cash' AND e.category != 'تسديد مورد'", $paramsExpAdmin) ?: 0;
+        }
+
         // 5. Deposits
         $totalDepositsYER = (float)$this->fetchColumn("SELECT SUM(d.amount) FROM qat_deposits d LEFT JOIN users u ON d.created_by = u.id $whereDep AND d.currency = 'YER'", $paramsDep) ?: 0;
 
@@ -418,6 +432,9 @@ class ReportRepository extends BaseRepository
             'total_expenses' => $totalExp,
             'total_cash_expenses' => $totalCashExp,
             'total_transfer_expenses' => $totalTransferExp,
+            'total_admin_expenses' => $totalAdminExp,
+            'total_admin_cash_expenses' => $totalAdminCashExp,
+            'total_admin_transfer_expenses' => $totalAdminTransferExp,
             'total_provider_payments' => $totalProvPay,
             'total_cash_provider_payments' => $totalCashProvPay,
             'deposits_yer' => $totalDepositsYER,

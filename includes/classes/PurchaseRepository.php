@@ -175,4 +175,11 @@ class PurchaseRepository extends BaseRepository
             'units' => max(0, (int)$row['received_units'] - (int)$row['sold_units'] - (int)$row['managed_units'])
         ];
     }
+
+    public function restoreInventory($id, $kg, $units)
+    {
+        // Inventory availability is calculated dynamically via getRemainingStock and SaleRepository sums.
+        // Returning a sale automatically decreases the "sold_kg" making it available again.
+        return true; 
+    }
 }

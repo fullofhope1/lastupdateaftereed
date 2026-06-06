@@ -141,9 +141,9 @@ class SaleService extends BaseService
             }
 
             // 2. Credit Limit Check
-            // If payment is not Debt and no paid_amount is provided, assume full payment
-            if ($data['payment_method'] !== 'Debt' && !isset($data['paid_amount'])) {
-                $data['paid_amount'] = $data['price'];
+            // If no paid_amount is provided, determine default based on payment method
+            if (!isset($data['paid_amount'])) {
+                $data['paid_amount'] = ($data['payment_method'] === 'Debt') ? 0 : $data['price'];
             }
             
             $isPartial = (float)$data['price'] > (float)($data['paid_amount'] ?? 0);
@@ -265,5 +265,49 @@ class SaleService extends BaseService
             $this->saleRepo->rollBack();
             throw $e;
         }
+    }
+
+    public function editSale($saleId, array $newData)
+    {
+        $oldSale = $this->saleRepo->getById($saleId);
+        if (!$oldSale) throw new Exception("SaleNotFound");
+        
+        $saleDate = date('Y-m-d', strtotime($oldSale['sale_date']));
+        $today    = date('Y-m-d');
+        if ($saleDate !== $today) {
+            throw new Exception("التعديل مسموح فقط لمبيعات اليوم الحالي.");
+        }
+
+        // Return the old sale (this restores inventory and reverses debt)
+        $this->processReturn($saleId, "تعديل فاتورة - إرجاع آلي للنسخة السابقة");
+
+        // Construct new sale data by merging old fixed data with new editable data
+        $saleData = [
+            'purchase_id' => $oldSale['purchase_id'],
+            'leftover_id' => $oldSale['leftover_id'],
+            'qat_type_id' => $oldSale['qat_type_id'],
+            'customer_id' => !empty($newData['customer_id']) ? $newData['customer_id'] : $oldSale['customer_id'],
+            'weight_grams' => isset($newData['weight_grams']) ? $newData['weight_grams'] : $oldSale['weight_grams'],
+            'quantity_units' => isset($newData['quantity_units']) ? $newData['quantity_units'] : $oldSale['quantity_units'],
+            'unit_type' => !empty($newData['unit_type']) ? $newData['unit_type'] : $oldSale['unit_type'],
+            'price' => isset($newData['price']) ? $newData['price'] : $oldSale['price'],
+            'payment_method' => !empty($newData['payment_method']) ? $newData['payment_method'] : $oldSale['payment_method'],
+            'paid_amount' => isset($newData['paid_amount']) ? $newData['paid_amount'] : $oldSale['paid_amount'],
+            'remaining_method' => $newData['remaining_method'] ?? null,
+            'debt_type' => !empty($newData['debt_type']) ? $newData['debt_type'] : $oldSale['debt_type'],
+            'sale_date' => $oldSale['sale_date'],
+            'qat_status' => $oldSale['qat_status']
+        ];
+
+        foreach (['transfer_sender', 'transfer_receiver', 'transfer_number', 'transfer_company'] as $tField) {
+            if (isset($newData[$tField])) {
+                $saleData[$tField] = $newData[$tField];
+            } elseif (isset($oldSale[$tField])) {
+                $saleData[$tField] = $oldSale[$tField];
+            }
+        }
+
+        // processSale handles reducing inventory, adding new debt, and logging transfer info.
+        return $this->processSale($saleData);
     }
 }

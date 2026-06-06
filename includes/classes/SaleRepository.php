@@ -98,6 +98,17 @@ class SaleRepository extends BaseRepository
         );
     }
 
+    public function getUnpaidDebtSales($customerId)
+    {
+        return $this->fetchAll(
+            "SELECT id, price, paid_amount, COALESCE(refund_amount, 0) as refund_amount 
+             FROM sales 
+             WHERE customer_id = ? AND payment_method = 'Debt' AND is_paid = 0 AND is_returned = 0 
+             ORDER BY sale_date ASC, id ASC",
+            [$customerId]
+        );
+    }
+
     public function markAsReturned($id)
     {
         return $this->execute("UPDATE sales SET is_returned = 1 WHERE id = ?", [$id]);

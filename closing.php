@@ -39,15 +39,15 @@ foreach ($types as $t) {
     $managedUnits = 0;
     if (!empty($pids)) {
         $placeholders = implode(',', array_fill(0, count($pids), '?'));
-        // 2. Total Sold
-        $stmtSell = $pdo->prepare("SELECT SUM(weight_kg) as sold_kg, SUM(quantity_units) as sold_units FROM sales WHERE purchase_id IN ($placeholders)");
+        // 2. Total Sold (accounting for returns)
+        $stmtSell = $pdo->prepare("SELECT COALESCE(SUM(COALESCE(weight_kg, weight_grams/1000) - COALESCE(returned_kg, 0)), 0) as sold_kg, COALESCE(SUM(quantity_units - COALESCE(returned_units, 0)), 0) as sold_units FROM sales WHERE purchase_id IN ($placeholders) AND is_returned = 0");
         $stmtSell->execute($pids);
         $sellData = $stmtSell->fetch(PDO::FETCH_ASSOC);
         $soldKg = $sellData['sold_kg'] ?: 0;
         $soldUnits = $sellData['sold_units'] ?: 0;
 
         // 3. Managed weight (manual leftovers)
-        $stmtManaged = $pdo->prepare("SELECT SUM(weight_kg) as managed_kg, SUM(quantity_units) as managed_units FROM leftovers WHERE purchase_id IN ($placeholders) AND status IN ('Dropped', 'Transferred_Next_Day')");
+        $stmtManaged = $pdo->prepare("SELECT COALESCE(SUM(weight_kg), 0) as managed_kg, COALESCE(SUM(quantity_units), 0) as managed_units FROM leftovers WHERE purchase_id IN ($placeholders) AND status IN ('Dropped', 'Auto_Dropped', 'Transferred_Next_Day', 'Auto_Momsi', 'Momsi_Day_1', 'Momsi_Day_2', 'Closed', 'Staff_Consumption')");
         $stmtManaged->execute($pids);
         $managedData = $stmtManaged->fetch(PDO::FETCH_ASSOC);
         $managedKg = $managedData['managed_kg'] ?: 0;

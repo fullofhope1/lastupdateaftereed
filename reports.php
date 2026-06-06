@@ -507,7 +507,7 @@ if (in_array($view, ['Summary', 'Printable', 'Dashboard'])) {
         });
     }
 
-    function showDetails(category, title) {
+    function showDetails(category, title, type = '') {
         const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
         const body = document.getElementById('detailsModalBody');
         const label = document.getElementById('detailsModalLabel');
@@ -518,6 +518,7 @@ if (in_array($view, ['Summary', 'Printable', 'Dashboard'])) {
 
         const params = new URLSearchParams(window.location.search);
         params.set('category', category);
+        if (type) params.set('type', type);
         
         fetch('ajax_report_details.php?' + params.toString())
             .then(response => response.text())

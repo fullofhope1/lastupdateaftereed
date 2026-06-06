@@ -71,4 +71,9 @@ class CustomerRepository extends BaseRepository
     {
         return (float)$this->fetchColumn("SELECT total_debt FROM customers WHERE id = ?", [$id]);
     }
+
+    public function incrementPaidOpeningBalance($id, $amount)
+    {
+        return $this->execute("UPDATE customers SET paid_opening_balance = COALESCE(paid_opening_balance, 0) + ? WHERE id = ?", [$amount, $id]);
+    }
 }

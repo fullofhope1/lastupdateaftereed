@@ -15,6 +15,8 @@ $month = $_GET['month'] ?? date('Y-m');
 $year = $_GET['year'] ?? date('Y');
 $userId = $_SESSION['user_id'] ?? null;
 
+$type = $_GET['type'] ?? '';
+
 $reportRepo = new ReportRepository($pdo);
 $service = new ReportService($reportRepo);
 
@@ -23,7 +25,21 @@ $title = '';
 
 switch ($category) {
     case 'Sales':
-        $data = $reportRepo->getSalesList($reportType, $date, $month, $year);
+        $salesList = $reportRepo->getSalesList($reportType, $date, $month, $year);
+        // Filter out returned items
+        $data = array_filter($salesList, function($r) {
+            return empty($r['is_returned']) || $r['is_returned'] == 0;
+        });
+        // Filter by payment method if specified
+        if (!empty($type)) {
+            $data = array_filter($data, function($r) use ($type) {
+                // If type is Transfer, match 'Transfer' and 'Internal Transfer'
+                if ($type === 'Transfer') {
+                    return in_array($r['payment_method'], ['Transfer', 'Internal Transfer']);
+                }
+                return $r['payment_method'] === $type;
+            });
+        }
         $title = 'تفاصيل المبيعات';
         break;
     case 'Expenses':
@@ -31,7 +47,18 @@ switch ($category) {
         $title = 'تفاصيل المصاريف';
         break;
     case 'Payments':
-        $data = $reportRepo->getDetailedPayments($reportType, $date, $month, $year);
+        $payments = $reportRepo->getDetailedPayments($reportType, $date, $month, $year);
+        // Filter by payment method if specified
+        if (!empty($type)) {
+            $data = array_filter($payments, function($r) use ($type) {
+                if ($type === 'Transfer') {
+                    return in_array($r['payment_method'], ['Transfer', 'Internal Transfer']);
+                }
+                return $r['payment_method'] === $type;
+            });
+        } else {
+            $data = $payments;
+        }
         $title = 'تفاصيل التحصيلات';
         break;
     case 'Returns':

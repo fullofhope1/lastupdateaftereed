@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'quantity_units'   => (int)($_POST['quantity_units'] ?? 0),
             'price'            => (float)$_POST['price'],
             'payment_method'   => $_POST['payment_method'],
-            'paid_amount'      => isset($_POST['paid_amount']) && $_POST['paid_amount'] !== '' ? (float)$_POST['paid_amount'] : (float)$_POST['price'],
+            'paid_amount'      => isset($_POST['paid_amount']) && $_POST['paid_amount'] !== '' ? (float)$_POST['paid_amount'] : null,
             'remaining_method' => $_POST['remaining_method'] ?? null,
             'transfer_sender'  => !empty($_POST['transfer_sender'])  ? $_POST['transfer_sender']  : null,
             'transfer_receiver'=> !empty($_POST['transfer_receiver']) ? $_POST['transfer_receiver']: null,

@@ -72,7 +72,7 @@ $pay_data = $payStmt->fetchAll();
 // 3. Fetch Refunds (Credits to Debt)
 $refStmt = $pdo->prepare(
     "
-    SELECT created_at as t_date, 'مرتجع' as t_type,
+    SELECT created_at as t_date, CASE WHEN weight_kg = 0 AND quantity_units = 0 THEN 'تعويض مالي' ELSE 'مرتجع عيني' END as t_type,
            reason as t_desc, 0 as debit, amount as credit, id as ref_id
     FROM refunds
     WHERE customer_id = ? AND refund_type = 'Debt'" . ($dateFilter ? str_replace('t_date', 'created_at', $dateFilter) : "")

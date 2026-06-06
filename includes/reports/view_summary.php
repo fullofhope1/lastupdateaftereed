@@ -39,31 +39,31 @@ $cashInHandResult = $cashSummary['remaining_cash'] ?? 0;
                     </thead>
                     <tbody class="fs-6">
                         <!-- 1. CASH SALES -->
-                        <tr class="clickable-row" onclick="showDetails('Sales', 'إجمالي البيع نقداً')" style="cursor: pointer;">
+                        <tr class="clickable-row" onclick="showDetails('Sales', 'إجمالي البيع نقداً', 'Cash')" style="cursor: pointer;">
                             <td class="ps-4 py-3"><i class="fas fa-money-bill-alt text-success me-3"></i> 1. إجمالي البيع نقداً</td>
                             <td class="pe-4 py-3 text-end fw-bold text-dark fs-5"><?= number_format($cashSummary['cash_sales']) ?></td>
                         </tr>
                         
                         <!-- 2. CASH COLLECTIONS -->
-                        <tr class="bg-light bg-opacity-50 clickable-row" onclick="showDetails('Payments', 'إجمالي الواصل نقداً')" style="cursor: pointer;">
+                        <tr class="bg-light bg-opacity-50 clickable-row" onclick="showDetails('Payments', 'إجمالي الواصل نقداً', 'Cash')" style="cursor: pointer;">
                             <td class="ps-4 py-3"><i class="fas fa-hand-holding-usd text-primary me-3"></i> 2. إجمالي الواصل (دين مسدد) نقداً</td>
                             <td class="pe-4 py-3 text-end fw-bold text-primary fs-5"><?= number_format($cashSummary['wasel_cash']) ?></td>
                         </tr>
                         
                         <!-- 3. TRANSFER SALES -->
-                        <tr class="clickable-row" onclick="showDetails('Sales', 'إجمالي البيع حوالات')" style="cursor: pointer;">
+                        <tr class="clickable-row" onclick="showDetails('Sales', 'إجمالي البيع حوالات', 'Transfer')" style="cursor: pointer;">
                             <td class="ps-4 py-3"><i class="fas fa-university text-info me-3"></i> 3. إجمالي البيع حوالات</td>
                             <td class="pe-4 py-3 text-end fw-bold text-info fs-5"><?= number_format($cashSummary['transfer_sales']) ?></td>
                         </tr>
                         
                         <!-- 4. TRANSFER COLLECTIONS -->
-                        <tr class="bg-light bg-opacity-50 clickable-row" onclick="showDetails('Payments', 'إجمالي الواصل حوالات')" style="cursor: pointer;">
+                        <tr class="bg-light bg-opacity-50 clickable-row" onclick="showDetails('Payments', 'إجمالي الواصل حوالات', 'Transfer')" style="cursor: pointer;">
                             <td class="ps-4 py-3"><i class="fas fa-exchange-alt text-info me-3"></i> 4. إجمالي الواصل (دين مسدد) حوالات</td>
                             <td class="pe-4 py-3 text-end fw-bold text-info fs-5"><?= number_format($cashSummary['wasel_transfer']) ?></td>
                         </tr>
 
                         <!-- 5. NEW DEBT TODAY -->
-                        <tr class="bg-danger bg-opacity-10 clickable-row" onclick="showDetails('DebtSales', 'الديون الجديدة اليوم')" style="cursor: pointer;">
+                        <tr class="bg-danger bg-opacity-10 clickable-row" onclick="showDetails('Sales', 'الديون الجديدة اليوم', 'Debt')" style="cursor: pointer;">
                             <td class="ps-4 py-3 fw-bold text-danger"><i class="fas fa-user-plus me-3"></i> 5. إجمالي الديون الجديدة (اليوم)</td>
                             <td class="pe-4 py-3 text-end fw-bold text-danger fs-5"><?= number_format($cashSummary['today_debt_sales']) ?></td>
                         </tr>
