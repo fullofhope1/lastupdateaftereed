@@ -107,13 +107,11 @@ $cashInHandResult = $cashSummary['remaining_cash'] ?? 0;
                         </tr>
                         <?php endif; ?>
 
-                        <!-- 9. PROVIDER PAYMENTS (Hidden as per user request - handled in statements) -->
-                        <?php /*
+                        <!-- 9. PROVIDER PAYMENTS -->
                         <tr class="bg-light border-top">
                             <td class="ps-4 py-3 fw-bold text-primary"><i class="fas fa-truck-loading me-3"></i> 11. إجمالي المبالغ المسلمة للموردين (تسديد)</td>
                             <td class="pe-4 py-3 text-end fw-bold text-primary"><?= number_format($totals['total_provider_payments'] ?? 0) ?></td>
                         </tr>
-                        */ ?>
                         <!-- 11. INVENTORY VALUE -->
                         <tr class="bg-warning bg-opacity-10 border-top border-4 border-white">
                             <td class="ps-4 py-3 fw-bold text-dark"><i class="fas fa-boxes me-3 text-warning"></i> 11. إجمالي قيمة المخزون الحالي (بضاعة لم تُبع)</td>

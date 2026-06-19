@@ -68,6 +68,14 @@ $todayAr = date('Y-m-d');
         <span class="badge bg-secondary rounded-pill"><?= count($customers) ?> عميل مدين</span>
     </div>
 
+    <!-- Search Bar -->
+    <div class="mb-4">
+        <div class="input-group shadow-sm" style="border-radius: 15px; overflow: hidden;">
+            <span class="input-group-text bg-white border-0 ps-4"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="searchInput" class="form-control border-0 bg-white shadow-none" placeholder="ابحث باسم العميل أو رقم الجوال..." onkeyup="filterTables()" style="padding: 1rem;">
+        </div>
+    </div>
+
     <!-- TABS -->
     <ul class="nav nav-tabs nav-tabs-wa mb-0 border-0" id="msgTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -232,6 +240,31 @@ $todayAr = date('Y-m-d');
     function markSent(rowId) {
         const row = document.getElementById(rowId);
         if (row) row.classList.add('row-sent');
+    }
+
+    function filterTables() {
+        let input = document.getElementById('searchInput');
+        let filter = input.value.toUpperCase();
+        let tbodies = document.querySelectorAll('.table tbody');
+        
+        tbodies.forEach(tbody => {
+            let tr = tbody.getElementsByTagName('tr');
+            for (let i = 0; i < tr.length; i++) {
+                if (tr[i].getElementsByTagName('td').length < 2) continue; // Skip empty message rows
+                
+                let tdName = tr[i].getElementsByTagName('td')[0];
+                let tdPhone = tr[i].getElementsByTagName('td')[1];
+                
+                let txtValueName = tdName ? (tdName.textContent || tdName.innerText) : "";
+                let txtValuePhone = tdPhone ? (tdPhone.textContent || tdPhone.innerText) : "";
+                
+                if (txtValueName.toUpperCase().indexOf(filter) > -1 || txtValuePhone.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        });
     }
 </script>
 

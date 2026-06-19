@@ -40,11 +40,22 @@ foreach ($types as $t) {
     if (!empty($pids)) {
         $placeholders = implode(',', array_fill(0, count($pids), '?'));
         // 2. Total Sold (accounting for returns)
-        $stmtSell = $pdo->prepare("SELECT COALESCE(SUM(COALESCE(weight_kg, weight_grams/1000) - COALESCE(returned_kg, 0)), 0) as sold_kg, COALESCE(SUM(quantity_units - COALESCE(returned_units, 0)), 0) as sold_units FROM sales WHERE purchase_id IN ($placeholders) AND is_returned = 0");
+        $stmtSell = $pdo->prepare("SELECT 
+            COALESCE(SUM(COALESCE(weight_kg, weight_grams/1000)), 0) as gross_sold_kg,
+            COALESCE(SUM(COALESCE(returned_kg, 0)), 0) as returned_kg,
+            COALESCE(SUM(COALESCE(weight_kg, weight_grams/1000) - COALESCE(returned_kg, 0)), 0) as sold_kg, 
+            COALESCE(SUM(quantity_units), 0) as gross_sold_units,
+            COALESCE(SUM(COALESCE(returned_units, 0)), 0) as returned_units,
+            COALESCE(SUM(quantity_units - COALESCE(returned_units, 0)), 0) as sold_units 
+            FROM sales WHERE purchase_id IN ($placeholders) AND is_returned = 0");
         $stmtSell->execute($pids);
         $sellData = $stmtSell->fetch(PDO::FETCH_ASSOC);
         $soldKg = $sellData['sold_kg'] ?: 0;
         $soldUnits = $sellData['sold_units'] ?: 0;
+        $grossSoldKg = $sellData['gross_sold_kg'] ?: 0;
+        $returnedKg = $sellData['returned_kg'] ?: 0;
+        $grossSoldUnits = $sellData['gross_sold_units'] ?: 0;
+        $returnedUnits = $sellData['returned_units'] ?: 0;
 
         // 3. Managed weight (manual leftovers)
         $stmtManaged = $pdo->prepare("SELECT COALESCE(SUM(weight_kg), 0) as managed_kg, COALESCE(SUM(quantity_units), 0) as managed_units FROM leftovers WHERE purchase_id IN ($placeholders) AND status IN ('Dropped', 'Auto_Dropped', 'Transferred_Next_Day', 'Auto_Momsi', 'Momsi_Day_1', 'Momsi_Day_2', 'Closed', 'Staff_Consumption')");
@@ -66,6 +77,10 @@ foreach ($types as $t) {
         'bought_units' => $boughtUnits,
         'sold_kg' => $soldKg,
         'sold_units' => $soldUnits,
+        'gross_sold_kg' => $grossSoldKg ?? 0,
+        'returned_kg' => $returnedKg ?? 0,
+        'gross_sold_units' => $grossSoldUnits ?? 0,
+        'returned_units' => $returnedUnits ?? 0,
         'surplus_kg' => $remKg,
         'surplus_units' => $remUnits
     ];
@@ -153,9 +168,24 @@ foreach ($preview as $p) {
                                         <?php if ($p['bought_kg'] == 0 && $p['bought_units'] == 0) echo '-'; ?>
                                     </td>
                                     <td>
-                                        <?php if ($p['sold_kg'] > 0) echo number_format($p['sold_kg'], 3) . ' كجم<br>'; ?>
-                                        <?php if ($p['sold_units'] > 0) echo $p['sold_units'] . ' وحدة'; ?>
-                                        <?php if ($p['sold_kg'] == 0 && $p['sold_units'] == 0) echo '-'; ?>
+                                        <?php if ($p['sold_kg'] > 0 || $p['gross_sold_kg'] > 0): ?>
+                                            <span class="fw-bold text-success"><?= number_format($p['sold_kg'], 3) ?> كجم</span>
+                                            <?php if ($p['returned_kg'] > 0): ?>
+                                                <div class="small text-muted mt-1" style="font-size:0.75rem;">
+                                                    (إجمالي: <?= number_format($p['gross_sold_kg'], 3) ?> | مرتجع: <span class="text-danger"><?= number_format($p['returned_kg'], 3) ?></span>)
+                                                </div>
+                                            <?php endif; ?>
+                                            <br>
+                                        <?php endif; ?>
+                                        <?php if ($p['sold_units'] > 0 || $p['gross_sold_units'] > 0): ?>
+                                            <span class="fw-bold text-success"><?= $p['sold_units'] ?> وحدة</span>
+                                            <?php if ($p['returned_units'] > 0): ?>
+                                                <div class="small text-muted mt-1" style="font-size:0.75rem;">
+                                                    (إجمالي: <?= $p['gross_sold_units'] ?> | مرتجع: <span class="text-danger"><?= $p['returned_units'] ?></span>)
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php if ($p['sold_kg'] == 0 && $p['sold_units'] == 0 && $p['gross_sold_kg'] == 0 && $p['gross_sold_units'] == 0) echo '-'; ?>
                                     </td>
                                     <td class="fw-bold text-danger">
                                         <?php if ($p['surplus_kg'] > 0.001) echo number_format($p['surplus_kg'], 3) . ' كجم<br>'; ?>

@@ -362,7 +362,9 @@ class ReportRepository extends BaseRepository
 
         // 1. Sales Breakdown
         $cashSales = (float)$this->fetchColumn("SELECT SUM(s.paid_amount) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method IN ('Cash', 'Debt', 'Split_Transfer') AND s.is_returned = 0", $paramsSales) ?: 0;
-        $transferSales = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method NOT IN ('Cash', 'Debt', 'Split_Transfer') AND s.is_returned = 0", $paramsSales) ?: 0;
+        $transferSalesFull = (float)$this->fetchColumn("SELECT SUM(s.price) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method NOT IN ('Cash', 'Debt', 'Split_Transfer') AND s.is_returned = 0", $paramsSales) ?: 0;
+        $transferSalesPartial = (float)$this->fetchColumn("SELECT SUM(s.price - s.paid_amount) FROM sales s LEFT JOIN users u ON s.created_by = u.id $whereSales AND s.payment_method = 'Split_Transfer' AND s.is_returned = 0", $paramsSales) ?: 0;
+        $transferSales = $transferSalesFull + $transferSalesPartial;
         
         // 2. Collections Breakdown
         $totalWaselCash = (float)$this->fetchColumn("SELECT SUM(p.amount) FROM payments p LEFT JOIN users u ON p.created_by = u.id $wherePay AND p.payment_method = 'Cash'", $paramsPay) ?: 0;
@@ -397,6 +399,7 @@ class ReportRepository extends BaseRepository
         
         $totalProvPay = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
         $totalCashProvPay = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.payment_method = 'Cash' AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
+        $totalTransferProvPay = (float)$this->fetchColumn("SELECT SUM(e.amount) FROM expenses e LEFT JOIN users u ON e.created_by = u.id $whereExp AND e.payment_method != 'Cash' AND e.category = 'تسديد مورد'", $paramsExp) ?: 0;
 
         $totalAdminExp = 0;
         $totalAdminCashExp = 0;
@@ -437,6 +440,7 @@ class ReportRepository extends BaseRepository
             'total_admin_transfer_expenses' => $totalAdminTransferExp,
             'total_provider_payments' => $totalProvPay,
             'total_cash_provider_payments' => $totalCashProvPay,
+            'total_transfer_provider_payments' => $totalTransferProvPay,
             'deposits_yer' => $totalDepositsYER,
             'total_global_debt' => $totalGlobalDebt,
             'today_debt_sales' => $todayDebtSales
@@ -766,7 +770,7 @@ class ReportRepository extends BaseRepository
                     COALESCE(s.momsi1_kg, 0) as momsi1_kg,
                     COALESCE(s.momsi2_kg, 0) as momsi2_kg,
                     COALESCE(w.waste_kg, 0) as waste_kg,
-                    COALESCE(l.remaining_kg, 0) as remaining_kg,
+                    GREATEST(0, p.quantity_kg - COALESCE(s.fresh_kg, 0) - COALESCE(s.momsi1_kg, 0) - COALESCE(s.momsi2_kg, 0) - COALESCE(w.waste_kg, 0)) as remaining_kg,
                     (COALESCE(s.total_revenue, 0) - (p.net_cost - p.discount_amount)) as net_profit,
                     u.username as creator_name
                 FROM purchases p
@@ -777,9 +781,9 @@ class ReportRepository extends BaseRepository
                     SELECT 
                         s.purchase_id, 
                         SUM(s.price) as total_revenue,
-                        SUM(CASE WHEN s.qat_status = 'Tari' THEN s.weight_grams/1000 ELSE 0 END) as fresh_kg,
-                        SUM(CASE WHEN l.status = 'Momsi_Day_1' THEN s.weight_grams/1000 ELSE 0 END) as momsi1_kg,
-                        SUM(CASE WHEN l.status = 'Momsi_Day_2' THEN s.weight_grams/1000 ELSE 0 END) as momsi2_kg
+                        SUM(CASE WHEN s.qat_status = 'Tari' THEN COALESCE(s.weight_kg, s.weight_grams/1000) - COALESCE(s.returned_kg, 0) ELSE 0 END) as fresh_kg,
+                        SUM(CASE WHEN l.status = 'Momsi_Day_1' THEN COALESCE(s.weight_kg, s.weight_grams/1000) - COALESCE(s.returned_kg, 0) ELSE 0 END) as momsi1_kg,
+                        SUM(CASE WHEN l.status = 'Momsi_Day_2' THEN COALESCE(s.weight_kg, s.weight_grams/1000) - COALESCE(s.returned_kg, 0) ELSE 0 END) as momsi2_kg
                     FROM sales s
                     LEFT JOIN leftovers l ON s.leftover_id = l.id
                     WHERE s.is_returned = 0
@@ -791,12 +795,6 @@ class ReportRepository extends BaseRepository
                     WHERE status IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption')
                     GROUP BY purchase_id
                 ) w ON p.id = w.purchase_id
-                LEFT JOIN (
-                    SELECT purchase_id, SUM(weight_kg) as remaining_kg
-                    FROM leftovers
-                    WHERE status NOT IN ('Dropped', 'Auto_Dropped', 'Staff_Consumption')
-                    GROUP BY purchase_id
-                ) l ON p.id = l.purchase_id
                 $where
                 ORDER BY p.purchase_date DESC";
 

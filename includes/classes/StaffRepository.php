@@ -6,8 +6,8 @@ class StaffRepository extends BaseRepository
 
     public function create(array $data)
     {
-        $sql = "INSERT INTO staff (name, role, daily_salary, withdrawal_limit, created_by) 
-                VALUES (:name, :role, :daily_salary, :withdrawal_limit, :created_by)";
+        $sql = "INSERT INTO staff (name, role, phone, daily_salary, withdrawal_limit, created_by) 
+                VALUES (:name, :role, :phone, :daily_salary, :withdrawal_limit, :created_by)";
         return $this->execute($sql, $data);
     }
 

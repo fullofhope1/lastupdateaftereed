@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = [
             'name' => $_POST['name'],
             'role' => $_POST['role'] ?? 'Employee',
+            'phone' => $_POST['phone'] ?? null,
             'daily_salary' => $_POST['daily_salary'] ?? 0,
             'withdrawal_limit' => !empty($_POST['withdrawal_limit']) ? $_POST['withdrawal_limit'] : null,
             'created_by' => $_SESSION['user_id']

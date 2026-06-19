@@ -41,14 +41,16 @@ if ($from && $to) {
 $salesStmt = $pdo->prepare(
     "
     SELECT s.sale_date as t_date,
-           CASE WHEN s.payment_method = 'Debt' THEN 'بيع آجل' ELSE CONCAT('بيع (' , s.payment_method, ')') END as t_type,
+           CASE WHEN s.payment_method IN ('Debt', 'Split_Transfer') THEN 'بيع آجل' ELSE CONCAT('بيع (' , s.payment_method, ')') END as t_type,
            CONCAT(COALESCE(t.name,'?'), ' (', 
              CASE WHEN s.unit_type = 'weight' THEN s.weight_kg ELSE s.quantity_units END, 
              ' ', 
              CASE WHEN s.unit_type = 'weight' THEN 'كجم' ELSE 'وحدة' END, 
-           ')') as t_desc,
+           ')',
+           IF(COALESCE(s.paid_amount, 0) > 0 AND s.payment_method IN ('Debt', 'Split_Transfer'), CONCAT(' - دفعة مقدمة: ', CAST(s.paid_amount AS SIGNED)), '')
+           ) as t_desc,
            s.price as debit,
-           CASE WHEN s.payment_method != 'Debt' THEN s.price ELSE 0 END as credit,
+           CASE WHEN s.payment_method IN ('Debt', 'Split_Transfer') THEN COALESCE(s.paid_amount, 0) ELSE COALESCE(s.paid_amount, s.price) END as credit,
            s.id as ref_id,
            s.payment_method
     FROM sales s

@@ -183,7 +183,21 @@ elseif (str_contains($back, '.php')) $backUrl = $back;
                                 <td><?= $s['sale_date'] ?></td>
                                 <td><?= $s['type_name'] ?? '?' ?></td>
                                 <td><?= number_format($s['price']) ?></td>
-                                <td><?= $s['is_paid'] ? '<span class="badge bg-success">نقد</span>' : '<span class="badge bg-danger">آجل</span>' ?></td>
+                                <td>
+                                    <?php if ($s['is_paid']): ?>
+                                        <span class="badge bg-success">نقد</span>
+                                    <?php else: ?>
+                                        <?php if (in_array($s['payment_method'], ['Debt', 'Split_Transfer']) && ($s['paid_amount'] ?? 0) > 0): ?>
+                                            <span class="badge bg-warning">آجل جزئي</span>
+                                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                                دفع: <?= number_format($s['paid_amount']) ?><br>
+                                                متبقي: <span class="text-danger fw-bold"><?= number_format($s['price'] - $s['paid_amount']) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger">آجل</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

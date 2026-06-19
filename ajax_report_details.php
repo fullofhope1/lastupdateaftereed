@@ -33,11 +33,17 @@ switch ($category) {
         // Filter by payment method if specified
         if (!empty($type)) {
             $data = array_filter($data, function($r) use ($type) {
-                // If type is Transfer, match 'Transfer' and 'Internal Transfer'
-                if ($type === 'Transfer') {
-                    return in_array($r['payment_method'], ['Transfer', 'Internal Transfer']);
+                if ($type === 'Cash') {
+                    // Match getCashSummary logic for cash sales
+                    return in_array($r['payment_method'], ['Cash', 'Debt', 'Split_Transfer']) && $r['paid_amount'] > 0;
+                } elseif ($type === 'Debt') {
+                    // Match getCashSummary logic for today's new debt
+                    return $r['payment_method'] === 'Debt' && ($r['price'] - $r['paid_amount'] > 0);
+                } elseif ($type === 'Transfer') {
+                    // Match getCashSummary logic for transfer sales (Full Transfer + Split Transfer remainder)
+                    return !in_array($r['payment_method'], ['Cash', 'Debt', 'Split_Transfer']) || ($r['payment_method'] === 'Split_Transfer' && ($r['price'] - $r['paid_amount'] > 0));
                 }
-                return $r['payment_method'] === $type;
+                return true;
             });
         }
         $title = 'تفاصيل المبيعات';
@@ -121,8 +127,47 @@ if (empty($data)) {
                         <td><?= htmlspecialchars($row['customer_name'] ?? 'عام') ?></td>
                         <td><?= $row['qat_status'] ?></td>
                         <td><?= $row['unit_type'] == 'weight' ? ($row['weight_grams']/1000 . ' كجم') : ($row['quantity_units'] . ' ربطة') ?></td>
-                        <td class="fw-bold"><?= number_format($row['price']) ?></td>
-                        <td><?= $row['payment_method'] ?></td>
+                        <td class="fw-bold">
+                            <?php
+                            $displayAmount = $row['price'];
+                            $isPartial = false;
+                            
+                            if ($type === 'Cash') {
+                                $displayAmount = $row['paid_amount'];
+                                if ($displayAmount < $row['price']) $isPartial = true;
+                            } elseif ($type === 'Debt') {
+                                $displayAmount = $row['price'] - $row['paid_amount'];
+                                if ($displayAmount < $row['price']) $isPartial = true;
+                            } elseif ($type === 'Transfer') {
+                                if ($row['payment_method'] === 'Split_Transfer') {
+                                    $displayAmount = $row['price'] - $row['paid_amount'];
+                                    if ($displayAmount < $row['price']) $isPartial = true;
+                                } else {
+                                    $displayAmount = $row['price'];
+                                }
+                            }
+                            
+                            echo number_format($displayAmount);
+                            if ($isPartial) {
+                                echo " <br><small class='text-muted' style='font-size: 0.8em;'>(من إجمالي فاتورة " . number_format($row['price']) . ")</small>";
+                            } elseif (empty($type) && in_array($row['payment_method'], ['Debt', 'Split_Transfer']) && $row['paid_amount'] > 0) {
+                                // If viewing all sales without specific type filter, still show it's partial
+                                echo " <br><small class='text-muted' style='font-size: 0.8em;'>(مدفوع: " . number_format($row['paid_amount']) . ")</small>";
+                            }
+                            ?>
+                        </td>
+                        <td>
+                            <?php 
+                                if ($row['payment_method'] === 'Split_Transfer') {
+                                    echo "حوالة جزئية";
+                                } else {
+                                    echo $row['payment_method'];
+                                }
+                            ?>
+                            <?php if (in_array($row['payment_method'], ['Debt', 'Split_Transfer']) && $row['paid_amount'] > 0): ?>
+                                <span class="badge bg-warning ms-1">جزئي</span>
+                            <?php endif; ?>
+                        </td>
                     <?php elseif ($category === 'Expenses'): ?>
                         <td><?= $row['expense_date'] ?></td>
                         <td><?= htmlspecialchars($row['category']) ?></td>
