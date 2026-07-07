@@ -112,6 +112,65 @@ class PurchaseService extends BaseService
         }
     }
 
+    public function editReceivedQuantity($id, $newReceivedWeightGrams, $newReceivedUnits = 0)
+    {
+        $newQuantityKg = (float)$newReceivedWeightGrams / 1000;
+        $newReceivedUnits = (int)$newReceivedUnits;
+
+        $this->purchaseRepo->beginTransaction();
+        try {
+            $purchase = $this->purchaseRepo->getById($id, true);
+            if (!$purchase) {
+                throw new Exception("الشحنة غير موجودة");
+            }
+
+            if (!$purchase['is_received']) {
+                throw new Exception("هذه الشحنة لم يتم استلامها بعد!");
+            }
+
+            // Recalculate Agreed Price based on new actual received amount
+            $newAgreedPrice = $purchase['agreed_price'];
+            if ($purchase['unit_type'] === 'weight') {
+                if ($purchase['price_per_kilo'] > 0) {
+                    $newAgreedPrice = (float)$newQuantityKg * (float)$purchase['price_per_kilo'];
+                }
+            } else {
+                if ($purchase['price_per_unit'] > 0) {
+                    $newAgreedPrice = (int)$newReceivedUnits * (float)$purchase['price_per_unit'];
+                }
+            }
+
+            $this->purchaseRepo->update($id, [
+                'received_weight_grams' => $newReceivedWeightGrams,
+                'quantity_kg' => $newQuantityKg,
+                'received_units' => $newReceivedUnits,
+                'agreed_price' => $newAgreedPrice
+            ]);
+
+            // Adjust reception loss if weight-based
+            if ($purchase['unit_type'] === 'weight') {
+                $sourceKg = (int)($purchase['source_weight_grams'] ?? 0) / 1000;
+                $lossKg = $sourceKg - $newQuantityKg;
+                
+                if ($lossKg > 0.001) {
+                    $updated = $this->purchaseRepo->updateReceptionLoss($id, $lossKg);
+                    if (!$updated) {
+                        // It didn't exist before, so record it now
+                        $this->purchaseRepo->recordReceptionLoss($id, $purchase['qat_type_id'], $lossKg, date('Y-m-d', strtotime($purchase['received_at'])));
+                    }
+                } else {
+                    // Loss is negative or zero, clear it
+                    $this->purchaseRepo->updateReceptionLoss($id, 0);
+                }
+            }
+
+            $this->purchaseRepo->commit();
+        } catch (Exception $e) {
+            $this->purchaseRepo->rollBack();
+            throw $e;
+        }
+    }
+
     public function getPending()
     {
         return $this->purchaseRepo->getPendingShipments();

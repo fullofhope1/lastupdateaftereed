@@ -149,6 +149,28 @@ class PurchaseRepository extends BaseRepository
         return $this->execute($sql, [$date, $purchaseId, $typeId, $weight, $date, $date]);
     }
 
+    public function updateReceptionLoss($purchaseId, $newWeightKg)
+    {
+        if ($newWeightKg <= 0.001) {
+            $sql = "DELETE FROM leftovers WHERE purchase_id = ? AND status = 'Reception_Loss'";
+            return $this->execute($sql, [$purchaseId]);
+        } else {
+            // Check if exists
+            $stmt = $this->pdo->prepare("SELECT id FROM leftovers WHERE purchase_id = ? AND status = 'Reception_Loss' LIMIT 1");
+            $stmt->execute([$purchaseId]);
+            $exists = $stmt->fetchColumn();
+            
+            if ($exists) {
+                $sql = "UPDATE leftovers SET weight_kg = ? WHERE id = ?";
+                return $this->execute($sql, [$newWeightKg, $exists]);
+            } else {
+                // If doesn't exist, we can't create without typeId and date, but editReceivedQuantity can call recordReceptionLoss. 
+                // Return false so the caller knows it didn't update an existing one.
+                return false;
+            }
+        }
+    }
+
     public function applyDiscount($id, $amount)
     {
         $sql = "UPDATE purchases SET discount_amount = discount_amount + ? WHERE id = ?";

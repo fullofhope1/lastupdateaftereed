@@ -69,13 +69,12 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
     }
 
     .circle-btn {
-        width: 130px;
-        height: 130px;
+        width: 145px;
+        height: 145px;
         border-radius: 50%;
         border: none;
         color: white;
-        font-weight: bold;
-        font-size: 1.1rem;
+        font-size: 1rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         transition: all 0.2s;
         display: flex;
@@ -84,6 +83,9 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
         justify-content: center;
         cursor: pointer;
         position: relative;
+        text-align: center;
+        padding: 5px;
+        line-height: 1.2;
     }
 
     .circle-btn:active {
@@ -167,8 +169,8 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
             <?php endif; ?>
 
             <div class="summary-bar" id="summaryBar" dir="rtl">
-                <span>النوع: <b id="s_type">-</b></span>
                 <span>الرعوي: <b id="s_rawi">-</b></span>
+                <span>النوع: <b id="s_type">-</b></span>
                 <span>الزبون: <b id="s_cust">-</b></span>
                 <span>الوزن: <b id="s_weight">-</b></span>
                 <span>السعر: <b id="s_price">-</b></span>
@@ -194,6 +196,9 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
                 </button>
                 <button type="button" class="btn btn-dark btn-sm rounded-pill px-3" id="btnStaffMode" onclick="startStaffConsumption()">
                     <i class="fas fa-utensils me-1"></i> تسجيل تخزينة عمال
+                </button>
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" onclick="openTodaySalesModal()">
+                    <i class="fas fa-list me-1"></i> مبيعات اليوم / تعديل
                 </button>
             </div>
         </div>
@@ -222,34 +227,18 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 
         <input type="hidden" name="debt_type" id="i_dtype">
 
-        <!-- STEP 1: Qat Type -->
+        <!-- STEP 1: Provider -->
         <div id="step1" class="step-container active">
-            <h3>اختر النوع</h3>
-            <!-- STRICTLY ARABIC BUTTONS from DB (updated by script) -->
-            <div class="grid-container">
-                <?php foreach ($types as $t): ?>
-                    <?php 
-                        // Check if this type has any stock in $todaysStock
-                        $hasStock = false;
-                        foreach ($todaysStock as $item) {
-                            if ($item['qat_type_id'] == $t['id'] && $item['type'] !== 'leftover') {
-                                if (isset($item['remaining_kg']) && $item['remaining_kg'] > 0) { $hasStock = true; break; }
-                                if (isset($item['remaining_units']) && $item['remaining_units'] > 0) { $hasStock = true; break; }
-                            }
-                        }
-                        if (!$hasStock) continue;
-                    ?>
-                    <button type="button" class="circle-btn btn-type" onclick="nextStep(1, {id: <?= $t['id'] ?>, name: '<?= $t['name'] ?>'})">
-                        <?= $t['name'] ?>
-                    </button>
-                <?php endforeach; ?>
+            <h3>اختر الرعوي</h3>
+            <div class="grid-container" id="step1Grid">
+                <!-- Populated by JS -->
             </div>
         </div>
 
-        <!-- STEP 2: Provider -->
+        <!-- STEP 2: Qat Type -->
         <div id="step2" class="step-container">
-            <h3>اختر الرعوي</h3>
-            <div class="grid-container" id="providerGrid"></div>
+            <h3>اختر النوع</h3>
+            <div class="grid-container" id="step2Grid"></div>
             <div class="mt-4"><button type="button" class="btn btn-secondary" onclick="backStep(1)">عودة</button></div>
         </div>
 
@@ -293,12 +282,15 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
         <div id="step4" class="step-container">
             <h3>الوزن</h3>
             <div class="grid-container">
-                <!-- Gram Presets -->
-                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 50)">50 جرام<br>حق 1000</button>
                 <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 100)">100 جرام<br>ثمن</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 200)">200 جرام</button>
                 <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 250)">250 جرام<br>ربع</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 300)">300 جرام</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 400)">400 جرام</button>
                 <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 500)">500 جرام<br>نص</button>
-                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 1000)">1000 جرام<br>كيلو</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 600)">600 جرام</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 700)">700 جرام</button>
+                <button type="button" class="circle-btn btn-weight" onclick="nextStep(4, 800)">800 جرام</button>
 
                 <!-- Manual Input -->
                 <button type="button" class="circle-btn bg-dark text-white" onclick="document.getElementById('manualWeight').classList.remove('d-none')">
@@ -440,6 +432,7 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 <script>
     const allCustomers = <?= $jsonCustomers ?>;
     const stockData = <?= $jsonStock ?>;
+    const typesArray = <?= json_encode($types) ?>;
     let currentStep = 1;
     let isStaffConsumption = false;
 
@@ -455,11 +448,13 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 
     function nextStep(step, data) {
         // Handle Data Logic
-        if (step === 1) { // Type
-            document.getElementById('i_type').value = data.id;
-            document.getElementById('s_type').innerText = data.name;
-            populateProviders(data.id);
-        } else if (step === 2) { // Provider/Stock Item
+        if (step === 1) { // Provider
+            document.getElementById('s_rawi').innerText = data.name;
+            populateTypes(data.name);
+        } else if (step === 2) { // Type / Stock Item
+            document.getElementById('i_type').value = data.type_id;
+            document.getElementById('s_type').innerText = data.type_name;
+            
             // Reset both IDs first to ensure mutual exclusivity
             document.getElementById('i_pid').value = "";
             document.getElementById('i_leftover').value = "";
@@ -470,7 +465,6 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
                 document.getElementById('i_pid').value = data.id;
             }
             
-            document.getElementById('s_rawi').innerText = data.name;
             document.getElementById('i_utype').value = data.unit_type;
             window._selectedRemainingUnits = data.remaining_units || 0;
             window._selectedRemainingKg = data.remaining_kg || 0;
@@ -721,27 +715,57 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
     }
 
     // --- Helpers ---
-    function populateProviders(typeId) {
-        const grid = document.getElementById('providerGrid');
+    function initStep1() {
+        const grid = document.getElementById('step1Grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        
+        let providersMap = new Map();
+        stockData.forEach(i => {
+            if (i.type === 'leftover') return; // Hide leftovers initially
+            
+            let pName = i.provider_name || 'غير معروف';
+            if (!providersMap.has(pName)) {
+                providersMap.set(pName, { name: pName });
+            }
+        });
+        
+        if (providersMap.size === 0) {
+            grid.innerHTML = '<div class="alert alert-warning w-100">لا يوجد مخزون متاح اليوم</div>';
+            return;
+        }
+        
+        providersMap.forEach((p, pName) => {
+            const btn = document.createElement('button');
+            btn.className = 'circle-btn btn-provider';
+            btn.innerHTML = `<b>${pName}</b>`;
+            btn.type = 'button';
+            btn.onclick = () => nextStep(1, { name: pName });
+            grid.appendChild(btn);
+        });
+    }
+
+    // Call initStep1 on load
+    document.addEventListener('DOMContentLoaded', () => {
+        initStep1();
+    });
+
+    function populateTypes(providerName) {
+        const grid = document.getElementById('step2Grid');
         grid.innerHTML = '';
 
-        // --- Admin-Only Technique Restriction ---
-        const userRole = '<?= $_SESSION['role'] ?>';
-        const isAdmin = ['admin', 'super_admin'].includes(userRole);
-
-        const providers = stockData.filter(i => {
-            if (i.qat_type_id != typeId) return false;
-            if (i.type === 'leftover') return false; // Hide leftovers from main sales page
-            // Unit-based products are now visible to all staff
+        const items = stockData.filter(i => {
+            if ((i.provider_name || 'غير معروف') !== providerName) return false;
+            if (i.type === 'leftover') return false; 
             return true;
         });
 
-        if (providers.length === 0) {
-            grid.innerHTML = '<div class="alert alert-warning w-100">لا يوجد مخزون متاح لهذا النوع اليوم</div>';
+        if (items.length === 0) {
+            grid.innerHTML = '<div class="alert alert-warning w-100">لا يوجد أصناف متاحة لهذا الرعوي</div>';
         } else {
-            providers.forEach(p => {
+            items.forEach(p => {
                 const btn = document.createElement('button');
-                btn.className = 'circle-btn btn-provider';
+                btn.className = 'circle-btn btn-type';
 
                 // Inventory Check
                 let remaining = 0;
@@ -756,18 +780,22 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
 
                 const isSoldOut = remaining <= 0;
 
-                let label = `<b>${p.provider_name}</b>`;
+                // Find type name
+                let typeObj = typesArray.find(t => t.id == p.qat_type_id);
+                let typeName = typeObj ? typeObj.name : 'صنف';
+
+                let label = `<div class="px-2 w-100" style="font-size: 0.95rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${typeName}</div>`;
                 if (p.status_label) {
                     const badgeClass = p.type === 'leftover' ? 'bg-warning text-dark' : 'bg-light text-dark';
-                    label += `<br><span class="badge ${badgeClass} mb-1" style="font-size:0.7rem">${p.status_label}</span>`;
+                    label += `<div class="mt-1"><span class="badge ${badgeClass}" style="font-size:0.75rem; white-space: normal;">${p.status_label}</span></div>`;
                 }
 
                 if (isSoldOut) {
-                    label += '<br><small class="text-danger">(نفذ)</small>';
+                    label += '<div class="mt-1"><small class="text-danger fw-bold">(نفذ)</small></div>';
                     btn.style.opacity = '0.6';
                     btn.disabled = true;
                 } else {
-                    label += `<br><small>${remaining}${unitText}</small>`;
+                    label += `<div class="mt-1"><small class="fw-bold" style="font-size: 0.85rem;">${remaining}${unitText}</small></div>`;
                 }
 
                 btn.innerHTML = label;
@@ -776,7 +804,9 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
                 if (!isSoldOut) {
                     btn.onclick = () => nextStep(2, {
                         id: p.id,
-                        type: p.type, // purchase or leftover
+                        type: p.type, 
+                        type_id: p.qat_type_id,
+                        type_name: typeName,
                         name: p.provider_name,
                         unit_type: p.unit_type,
                         remaining_units: p.remaining_units || 0,
@@ -1104,5 +1134,195 @@ if (isset($_GET['success']) && isset($_GET['sale_id'])) {
         <i class="fas fa-file-invoice me-2"></i> تقرير اليوم المفصل
     </a>
 </div>
+
+<!-- Today Sales Modal -->
+<div class="modal fade" id="todaySalesModal" tabindex="-1" dir="rtl">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">سجل مبيعات اليوم</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="todaySalesLoading" class="text-center my-3"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+                <div id="todaySalesError" class="alert alert-danger d-none"></div>
+                <div class="table-responsive d-none" id="todaySalesTableContainer">
+                    <table class="table table-bordered table-striped" id="todaySalesTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>الوقت</th>
+                                <th>العميل</th>
+                                <th>الكمية</th>
+                                <th>السعر</th>
+                                <th>طريقة الدفع</th>
+                                <th>إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Sale Modal -->
+<div class="modal fade" id="editSaleModal" tabindex="-1" dir="rtl">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="requests/edit_sale.php" method="POST">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">تعديل المبيعة</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-end">
+                    <input type="hidden" name="redirect_to" value="../sales.php">
+                    <input type="hidden" id="edit_sale_id" name="sale_id">
+                    <input type="hidden" id="edit_unit_type" name="unit_type">
+                    <div class="alert alert-info">الكمية أو السعر القديم سيتم إرجاعه آلياً واحتساب القيم الجديدة لضمان دقة المحاسبة والمخزون.</div>
+                    
+                    <div class="mb-3">
+                        <label>العميل</label>
+                        <select class="form-select" id="edit_customer_id" name="customer_id">
+                            <option value="">عام (بدون عميل)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="edit_weight_group">
+                        <label>الوزن (جرام)</label>
+                        <input type="number" step="0.1" class="form-control text-center" id="edit_weight_grams" name="weight_grams">
+                    </div>
+
+                    <div class="mb-3 d-none" id="edit_units_group">
+                        <label>العدد</label>
+                        <input type="number" class="form-control text-center" id="edit_quantity_units" name="quantity_units">
+                    </div>
+
+                    <div class="mb-3">
+                        <label>السعر (ريال)</label>
+                        <input type="number" class="form-control text-center text-primary fw-bold fs-4" id="edit_price" name="price" required>
+                    </div>
+
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> جاري الحفظ...'; this.style.pointerEvents='none'; this.form.submit();">حفظ التعديل ✓</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let todaySalesModal;
+    let editSaleModal;
+    let currentSales = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        todaySalesModal = new bootstrap.Modal(document.getElementById('todaySalesModal'));
+        editSaleModal = new bootstrap.Modal(document.getElementById('editSaleModal'));
+
+        // Populate customers in edit modal
+        const custSelect = document.getElementById('edit_customer_id');
+        if (typeof allCustomers !== 'undefined') {
+            allCustomers.forEach(c => {
+                let opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                custSelect.appendChild(opt);
+            });
+        }
+        
+        // Show success message if redirected from edit
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'edited') {
+            alert('تم تعديل المبيعة بنجاح والمخزون تم تسويته بشكل آلي.');
+            // Remove URL param to prevent alert on refresh
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
+
+    function openTodaySalesModal() {
+        todaySalesModal.show();
+        document.getElementById('todaySalesLoading').classList.remove('d-none');
+        document.getElementById('todaySalesTableContainer').classList.add('d-none');
+        document.getElementById('todaySalesError').classList.add('d-none');
+
+        fetch('requests/get_todays_sales.php')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('todaySalesLoading').classList.add('d-none');
+                if (data.success) {
+                    currentSales = data.sales;
+                    renderTodaySalesTable();
+                    document.getElementById('todaySalesTableContainer').classList.remove('d-none');
+                } else {
+                    document.getElementById('todaySalesError').classList.remove('d-none');
+                    document.getElementById('todaySalesError').innerText = data.error || 'فشل جلب البيانات';
+                }
+            })
+            .catch(err => {
+                document.getElementById('todaySalesLoading').classList.add('d-none');
+                document.getElementById('todaySalesError').classList.remove('d-none');
+                document.getElementById('todaySalesError').innerText = 'خطأ في الاتصال بالسيرفر';
+            });
+    }
+
+    function renderTodaySalesTable() {
+        const tbody = document.querySelector('#todaySalesTable tbody');
+        tbody.innerHTML = '';
+        if (currentSales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا توجد مبيعات لهذا اليوم</td></tr>';
+            return;
+        }
+
+        currentSales.forEach(s => {
+            const tr = document.createElement('tr');
+            const time = s.created_at ? s.created_at.split(' ')[1] : s.sale_date;
+            const qty = s.unit_type === 'weight' ? (s.weight_grams/1000) + ' كجم' : s.quantity_units + ' ربطة';
+            
+            tr.innerHTML = `
+                <td dir="ltr" class="text-end">${time}</td>
+                <td>${s.cust_name || 'عام'}</td>
+                <td class="text-primary fw-bold">${qty}</td>
+                <td class="text-success fw-bold">${parseFloat(s.price).toLocaleString()}</td>
+                <td>${s.payment_method === 'Split_Transfer' ? 'حوالة جزئية' : s.payment_method}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="openEditSaleModal(${s.id})"><i class="fas fa-edit"></i> تعديل</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function openEditSaleModal(saleId) {
+        const sale = currentSales.find(x => x.id == saleId);
+        if (!sale) return;
+
+        document.getElementById('edit_sale_id').value = sale.id;
+        document.getElementById('edit_customer_id').value = sale.customer_id || '';
+        document.getElementById('edit_price').value = sale.price;
+        
+
+        
+        document.getElementById('edit_unit_type').value = sale.unit_type;
+
+        if (sale.unit_type === 'weight') {
+            document.getElementById('edit_weight_group').classList.remove('d-none');
+            document.getElementById('edit_units_group').classList.add('d-none');
+            document.getElementById('edit_weight_grams').value = sale.weight_grams;
+            document.getElementById('edit_quantity_units').value = '';
+        } else {
+            document.getElementById('edit_weight_group').classList.add('d-none');
+            document.getElementById('edit_units_group').classList.remove('d-none');
+            document.getElementById('edit_quantity_units').value = sale.quantity_units;
+            document.getElementById('edit_weight_grams').value = '';
+        }
+
+        todaySalesModal.hide();
+        editSaleModal.show();
+    }
+</script>
 
 <?php include 'includes/footer.php'; ?>

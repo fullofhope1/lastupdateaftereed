@@ -144,9 +144,14 @@ $received_purchases = $purchaseService->getReceivedToday($today);
                                         <span class="badge bg-success">تم التخزين</span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="openWasteModal(<?= $p['id'] ?>, '<?= addslashes($p['type_name']) ?>', '<?= $p['unit_type'] ?>', <?= ($p['unit_type'] === 'weight' ? $rem['kg'] : $rem['units']) ?>)">
-                                            <i class="fas fa-trash-alt"></i> إتلاف
-                                        </button>
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <button class="btn btn-outline-warning btn-sm" title="تعديل الكمية المستلمة" onclick="openEditReceivedModal(<?= $p['id'] ?>, '<?= addslashes($p['type_name']) ?>', '<?= $p['unit_type'] ?>', <?= $p['received_weight_grams'] ?>, <?= $p['received_units'] ?>)">
+                                                <i class="fas fa-edit"></i> تعديل
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="openWasteModal(<?= $p['id'] ?>, '<?= addslashes($p['type_name']) ?>', '<?= $p['unit_type'] ?>', <?= ($p['unit_type'] === 'weight' ? $rem['kg'] : $rem['units']) ?>)">
+                                                <i class="fas fa-trash-alt"></i> إتلاف
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -259,6 +264,42 @@ $received_purchases = $purchaseService->getReceivedToday($today);
         new bootstrap.Modal(document.getElementById('receiveModal')).show();
     }
 
+    function openEditPendingModal(id, provider, type, unit_type, sentGrams, sent_units) {
+        document.getElementById('edit_purchase_id').value = id;
+        document.getElementById('edit_provider').textContent = provider;
+        document.getElementById('edit_type').textContent = type;
+        document.getElementById('edit_unit_type').value = unit_type;
+
+        if (unit_type === 'weight') {
+            document.getElementById('weight_edit_group').classList.remove('d-none');
+            document.getElementById('count_edit_group').classList.add('d-none');
+            
+            document.getElementById('edit_grams').value = sentGrams;
+            document.getElementById('edit_grams').required = true;
+            document.getElementById('edit_units').required = false;
+            document.getElementById('edit_kg_display').textContent = 'ما يعادل: ' + (sentGrams / 1000).toFixed(3) + ' كجم';
+        } else {
+            document.getElementById('weight_edit_group').classList.add('d-none');
+            document.getElementById('count_edit_group').classList.remove('d-none');
+            
+            document.getElementById('edit_units').value = sent_units;
+            document.getElementById('edit_units').required = true;
+            document.getElementById('edit_grams').required = false;
+            document.getElementById('edit_unit_label').textContent = unit_type;
+        }
+
+        new bootstrap.Modal(document.getElementById('editPendingModal')).show();
+    }
+
+    // Dynamic kg display for edit modal
+    const editGramsInput = document.getElementById('edit_grams');
+    if (editGramsInput) {
+        editGramsInput.addEventListener('input', function() {
+            const grams = parseFloat(this.value) || 0;
+            document.getElementById('edit_kg_display').textContent = 'ما يعادل: ' + (grams / 1000).toFixed(3) + ' كجم';
+        });
+    }
+
     const rKg = document.getElementById('receive_kg');
     const rGrams = document.getElementById('receive_grams');
     const rUnits = document.getElementById('receive_units');
@@ -311,6 +352,88 @@ $received_purchases = $purchaseService->getReceivedToday($today);
                 diffDisplay.className = 'alert text-center fw-bold alert-secondary';
             }
         }
+    }
+</script>
+
+<!-- Edit Received Modal -->
+<div class="modal fade" id="editReceivedModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-warning">
+            <form action="requests/edit_received_shipment.php" method="POST">
+                <input type="hidden" name="purchase_id" id="er_purchase_id">
+                <input type="hidden" name="unit_type" id="er_unit_type">
+                
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2"></i> تعديل الكمية المستلمة</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 mb-3">
+                        تعديل الكمية هنا سيقوم بتحديث <strong>المخزون المتبقي</strong> وكذلك تحديث <strong>حساب المورد (التكلفة)</strong>.
+                    </div>
+                    
+                    <p><strong>النوع:</strong> <span id="er_type_name" class="fw-bold"></span></p>
+
+                    <div class="mb-3" id="er_weight_group">
+                        <label class="form-label fw-bold">الوزن الفعلي الصحيح (بالجرام)</label>
+                        <div class="input-group">
+                            <input type="number" step="1" class="form-control" id="er_grams" name="received_weight_grams">
+                            <span class="input-group-text">جرام</span>
+                        </div>
+                        <div class="form-text text-success fw-bold mt-1" id="er_kg_display"></div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="er_count_group">
+                        <label class="form-label fw-bold">العدد الفعلي الصحيح</label>
+                        <div class="input-group">
+                            <input type="number" step="1" class="form-control" id="er_units" name="received_units">
+                            <span class="input-group-text" id="er_unit_label"></span>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">حفظ التعديل</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditReceivedModal(id, typeName, unitType, currentGrams, currentUnits) {
+        document.getElementById('er_purchase_id').value = id;
+        document.getElementById('er_type_name').textContent = typeName;
+        document.getElementById('er_unit_type').value = unitType;
+
+        if (unitType === 'weight') {
+            document.getElementById('er_weight_group').classList.remove('d-none');
+            document.getElementById('er_count_group').classList.add('d-none');
+            
+            document.getElementById('er_grams').value = currentGrams;
+            document.getElementById('er_grams').required = true;
+            document.getElementById('er_units').required = false;
+            document.getElementById('er_kg_display').textContent = 'ما يعادل: ' + (currentGrams / 1000).toFixed(3) + ' كجم';
+        } else {
+            document.getElementById('er_weight_group').classList.add('d-none');
+            document.getElementById('er_count_group').classList.remove('d-none');
+            
+            document.getElementById('er_units').value = currentUnits;
+            document.getElementById('er_units').required = true;
+            document.getElementById('er_grams').required = false;
+            document.getElementById('er_unit_label').textContent = unitType;
+        }
+
+        new bootstrap.Modal(document.getElementById('editReceivedModal')).show();
+    }
+
+    const erGramsInput = document.getElementById('er_grams');
+    if (erGramsInput) {
+        erGramsInput.addEventListener('input', function() {
+            const grams = parseFloat(this.value) || 0;
+            document.getElementById('er_kg_display').textContent = 'ما يعادل: ' + (grams / 1000).toFixed(3) + ' كجم';
+        });
     }
 </script>
 
